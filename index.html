@@ -87,6 +87,10 @@ header{text-align:center;padding:44px 16px 22px}
 nav{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 30px;font-size:14px}  /* gap = espaço entre os links */
 nav a{text-decoration:none;color:var(--mute)}
 nav a:hover{color:#fff}
+/* Ícone do Instagram */
+.insta{display:inline-flex;margin-top:22px;color:var(--mute);transition:color .2s}  /* margin-top = distância do menu */
+.insta:hover{color:var(--gold)}                                                    /* fica dourado ao passar o mouse */
+.insta svg{width:35px;height:35px}
 
 /* =========================================================
    HERO (faixa grande com 3 colunas: foto | título | detalhe da foto)
@@ -104,6 +108,8 @@ nav a:hover{color:#fff}
 /* Botão branco (usado em todo o site). Fica dourado ao passar o mouse. */
 .btn{display:inline-block;background:#fff;color:#000;margin:10% ;padding:13px 30px;text-decoration:none;font-size:15px;letter-spacing:.04em}
 .btn:hover{background:var(--gold)}
+.btn2{display:inline-block;background:#fff;color:#000;margin:10% ;padding:13px 30px;text-decoration:none;font-size:15px;letter-spacing:.04em}
+.btn2:hover{background:var(--gold)}
 
 /* Títulos de seção (CUIDADOS FACIAIS, SOBRE A MAISON...) — sempre em caixa alta */
 h2{font-size:clamp(30px,4vw,42px);letter-spacing:.06em;text-transform:uppercase}
@@ -131,6 +137,7 @@ h2{font-size:clamp(30px,4vw,42px);letter-spacing:.06em;text-transform:uppercase}
 .c3{left:-4%;bottom:6%;width:36%;height:30%;background:var(--ph) 20% 25%/400%}  /* foto da esquerda: mais para a esquerda */
 .about p{color:var(--mute);max-width:46ch}
 .about .btn{margin-top:12px}
+.insta-box{max-width:46ch;text-align:center}   /* mesma largura dos parágrafos; centraliza o ícone */
 
 /* =========================================================
    SEÇÕES DE SERVIÇOS (cardápio com preços)
@@ -180,7 +187,9 @@ footer{padding:30px 16px 34px;border-top:1px solid var(--line);text-align:center
   .sec{padding:56px 0}
   .cats{padding:56px 0}
   .c2{background:var(--ph) 30% 50%/300%}
-  .c3{background:var(--ph) 23% 25%/450%}
+  .c3{background:var(--ph) 23% 25%/470%}
+  .about .btn{margin-left:20%}
+  .btn2{margin-left:17%}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
@@ -256,7 +265,18 @@ footer{padding:30px 16px 34px;border-top:1px solid var(--line);text-align:center
     <p>Por isso, cada detalhe da Maison é pensado para transformar o autocuidado em uma experiência única, unindo cuidado, delicadeza e atenção às individualidades de cada cliente.</p>
     <p>Se a beleza abre portas, aqui você gira a chave.</p>
     <p>Rhavila Maison — o privilégio de cuidar de si.</p>
-    <a class="btn" href="#agendar">Agendar um horário</a>
+    <!-- ============ INSTAGRAM ============
+     Troque SEU_USUARIO pelo @ da clínica (sem o @).
+     Exemplo: https://www.instagram.com/rhavilamaison/ -->
+<div class="insta-box">     
+<a class="insta" href="https://www.instagram.com/rhavila_maison/" target="_blank" rel="noopener" aria-label="Instagram da Rhavila Maison">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="5"/>
+    <circle cx="12" cy="12" r="4"/>
+    <circle cx="17.2" cy="6.8" r=".6" fill="currentColor"/>
+  </svg>
+</a>
+</div>
   </div>
 </div>
 
@@ -375,7 +395,7 @@ footer{padding:30px 16px 34px;border-top:1px solid var(--line);text-align:center
                Sem espaços, parênteses, hífen ou sinal de +
              O texto depois de ?text= é a mensagem que já aparece pronta
              (%20 = espaço). Pode editar a frase.                          -->
-        <a class="btn" href="https://wa.me/5561993747100?text=Ol%C3%A1!%20Gostaria%20de%20agendar%20um%20hor%C3%A1rio%20na%20Rhavila%20Maison." target="_blank" rel="noopener">Agendar pelo WhatsApp</a>
+        <a class="btn2" href="https://wa.me/5561993747100?text=Ol%C3%A1!%20Gostaria%20de%20agendar%20um%20hor%C3%A1rio%20na%20Rhavila%20Maison." target="_blank" rel="noopener">Agendar pelo WhatsApp</a>
       </div>
     </div>
   </div>
