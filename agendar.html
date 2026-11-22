@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agendar horário | Rhavila Maison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --papel: #000000;
+    --cartao: #100D0A;
+    --areia: #1F1810;
+    --linha: #3B3226;
+    --tinta: #F5F1EA;
+    --tinta-suave: #B9B0A4;
+    --preto: #D8B87D;
+    --preto-escuro: #C4A265;
+    --salvia: #9CC4A6;
+    --erro: #E58A9B;
+    --serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--papel);
+    color: var(--tinta);
+    font: 400 1rem/1.5 var(--sans);
+  }
+  [hidden] { display: none !important; }
+
+  .pagina { max-width: 38rem; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  .marca { font: 400 1.25rem/1 var(--serif); color: var(--preto); text-decoration: none; }
+  h1 { font: 400 clamp(2.4rem, 8vw, 3.4rem)/1.05 var(--serif); margin: 2.5rem 0 .5rem; letter-spacing: -.01em; }
+  .intro { color: var(--tinta-suave); margin: 0 0 2.5rem; max-width: 30rem; }
+  h2 { font: 400 1.6rem/1.15 var(--serif); margin: 0 0 1rem; }
+  section { margin-bottom: 2.5rem; }
+
+  :focus-visible { outline: 3px solid var(--preto); outline-offset: 2px; }
+
+  /* Serviços */
+  .servicos { display: grid; gap: .75rem; }
+  .servico { position: relative; display: block; cursor: pointer; }
+  .servico input { position: absolute; opacity: 0; inset: 0; }
+  .servico .cartao {
+    display: grid; grid-template-columns: 1fr auto; gap: .15rem 1rem;
+    padding: 1rem 1.1rem; background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 14px;
+    transition: border-color .15s, background-color .15s;
+  }
+  .servico:hover .cartao { border-color: var(--preto); }
+  .servico input:checked + .cartao { border-color: var(--preto); background: var(--areia); }
+  .servico input:focus-visible + .cartao { outline: 3px solid var(--preto); outline-offset: 2px; }
+  .servico .nome { font: 400 1.35rem/1.2 var(--serif); }
+  .servico .preco { font-weight: 600; white-space: nowrap; align-self: start; }
+  .servico .detalhe { grid-column: 1 / -1; color: var(--tinta-suave); font-size: .92rem; }
+
+  /* Dias */
+  .faixa {
+    display: flex; gap: .5rem; overflow-x: auto; padding: .25rem .25rem .75rem; margin: 0 -.25rem;
+    scroll-snap-type: x proximity; scrollbar-width: thin;
+  }
+  .dia {
+    flex: 0 0 4.4rem; scroll-snap-align: start; display: grid; justify-items: center; gap: 0;
+    padding: .6rem 0 .5rem; background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 10px;
+    font: inherit; color: inherit; cursor: pointer;
+    transition: background-color .15s, border-color .15s, color .15s;
+  }
+  .dia .sem { font-size: .82rem; color: var(--tinta-suave); }
+  .dia .num { font: 400 2rem/1.1 var(--serif); }
+  .dia .mes { font-size: .78rem; color: var(--tinta-suave); }
+  .dia:hover:not(:disabled) { border-color: var(--preto); }
+  .dia:disabled { opacity: .4; cursor: not-allowed; background: transparent; }
+  .dia[aria-pressed="true"] { background: var(--preto); border-color: var(--preto); color: var(--papel); }
+  .dia[aria-pressed="true"] .sem, .dia[aria-pressed="true"] .mes { color: var(--papel); }
+
+  /* Horários */
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr)); gap: .5rem; }
+  .hora {
+    padding: .7rem 0; background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 8px;
+    font: 500 1rem var(--sans); color: inherit; cursor: pointer; font-variant-numeric: tabular-nums;
+    transition: background-color .15s, border-color .15s, color .15s;
+  }
+  .hora:hover { border-color: var(--preto); }
+  .hora[aria-pressed="true"] { background: var(--preto); border-color: var(--preto); color: var(--papel); }
+  .aviso { color: var(--tinta-suave); margin: 0; }
+
+  /* Formulário */
+  .resumo {
+    margin: 0 0 1.5rem; padding: 1rem 1.1rem; background: var(--areia); border-radius: 14px;
+  }
+  .resumo .titulo { font: 400 1.35rem/1.2 var(--serif); margin: 0; }
+  .resumo .quando { margin: .15rem 0 0; }
+  .resumo .valor { margin: .5rem 0 0; font-weight: 600; }
+  .campo { margin-bottom: 1.1rem; }
+  label { display: block; font-weight: 500; margin-bottom: .35rem; }
+  .opcional { font-weight: 400; color: var(--tinta-suave); }
+  input[type="text"], input[type="tel"], input[type="email"] {
+    width: 100%; height: 3rem; padding: 0 .85rem; background: var(--cartao); color: inherit;
+    border: 1.5px solid var(--linha); border-radius: 8px; font: inherit;
+  }
+  input[aria-invalid="true"] { border-color: var(--erro); }
+  .erro { color: var(--erro); font-size: .92rem; margin: .35rem 0 0; }
+  .erro-geral { color: var(--erro); margin: 0 0 1rem; font-weight: 500; }
+  .opcoes-pgto { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: .5rem; }
+  .opcoes-pgto label { display: flex; gap: .6rem; align-items: flex-start; padding: .75rem .9rem; border: 1px solid var(--linha); background: var(--cartao); cursor: pointer; }
+  .opcoes-pgto input { margin-top: .2rem; accent-color: var(--preto); }
+  .opcoes-pgto label:has(input:checked) { border-color: var(--preto); background: var(--areia); }
+  .opcoes-pgto legend { padding: 0; margin-bottom: .5rem; font-weight: 600; }
+  .privacidade { color: var(--tinta-suave); font-size: .88rem; margin: 0 0 1.25rem; }
+  .armadilha { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+  .botao {
+    width: 100%; height: 3.4rem; border: 0; border-radius: 8px; background: var(--preto); color: var(--papel);
+    font: 600 1.05rem var(--sans); cursor: pointer; transition: background-color .15s;
+  }
+  .botao:hover:not(:disabled) { background: var(--preto-escuro); }
+  .botao:disabled { opacity: .6; cursor: progress; }
+  .botao.secundario { background: transparent; color: var(--preto); border: 1.5px solid var(--preto); }
+  .botao.secundario:hover:not(:disabled) { background: var(--areia); }
+
+  /* Confirmação */
+  .sucesso { margin-top: 2.5rem; }
+  .sucesso h2 { font-size: clamp(2.2rem, 7vw, 3rem); color: var(--salvia); margin-bottom: .5rem; }
+  .sucesso .codigo {
+    display: inline-block; margin: .25rem 0 1.25rem; padding: .35rem .8rem; background: var(--cartao);
+    border: 1.5px dashed var(--linha); border-radius: 8px; font: 600 1.2rem var(--sans); letter-spacing: .12em;
+  }
+  .sucesso .acoes { display: grid; gap: .75rem; margin-top: 1.5rem; }
+  .sucesso a.botao { display: grid; place-items: center; text-decoration: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; scroll-behavior: auto !important; }
+  }
+  :root { color-scheme: dark; }
+</style>
+</head>
+<body>
+<main class="pagina">
+  <a class="marca" href="/">Rhavila Maison</a>
+  <h1>Agende seu horário</h1>
+  <p class="intro">Escolha o serviço, o dia e o horário. Leva menos de um minuto.</p>
+
+  <form id="form" novalidate>
+    <section id="s-servico" aria-labelledby="t-servico">
+      <h2 id="t-servico">Serviço</h2>
+      <div id="servicos" class="servicos" role="radiogroup" aria-labelledby="t-servico">
+        <p class="aviso">Carregando serviços…</p>
+      </div>
+    </section>
+
+    <section id="s-dia" aria-labelledby="t-dia" hidden>
+      <h2 id="t-dia">Dia</h2>
+      <div id="dias" class="faixa"></div>
+    </section>
+
+    <section id="s-hora" aria-labelledby="t-hora" hidden>
+      <h2 id="t-hora">Horário</h2>
+      <p id="msg-horas" class="aviso" role="status" hidden></p>
+      <div id="horas" class="grade"></div>
+    </section>
+
+    <section id="s-dados" aria-labelledby="t-dados" hidden>
+      <h2 id="t-dados">Seus dados</h2>
+
+      <div class="resumo" aria-live="polite">
+        <p class="titulo" id="r-servico"></p>
+        <p class="quando" id="r-quando"></p>
+        <p class="valor" id="r-valor"></p>
+      </div>
+
+      <div class="campo">
+        <label for="nome">Nome completo</label>
+        <input id="nome" name="nome" type="text" autocomplete="name" maxlength="100" required aria-describedby="e-nome">
+        <p class="erro" id="e-nome" role="alert" hidden></p>
+      </div>
+
+      <div class="campo">
+        <label for="whatsapp">WhatsApp</label>
+        <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="(62) 99999-9999" required aria-describedby="e-whatsapp">
+        <p class="erro" id="e-whatsapp" role="alert" hidden></p>
+      </div>
+
+      <div class="campo">
+        <label for="email">E-mail <span class="opcional">(opcional)</span></label>
+        <input id="email" name="email" type="email" autocomplete="email" maxlength="120" aria-describedby="e-email">
+        <p class="erro" id="e-email" role="alert" hidden></p>
+      </div>
+
+      <div class="armadilha" aria-hidden="true">
+        <label for="site">Não preencha este campo</label>
+        <input id="site" name="site" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <fieldset id="escolha-pagamento" class="opcoes-pgto" hidden>
+        <legend>Como prefere pagar?</legend>
+        <label><input type="radio" name="forma" value="sinal" checked><span id="op-sinal"></span></label>
+        <label><input type="radio" name="forma" value="tudo"><span id="op-tudo"></span></label>
+      </fieldset>
+
+      <p id="aviso-pagamento" class="privacidade" hidden></p>
+      <p class="privacidade">Usamos seu nome e WhatsApp apenas para confirmar e organizar este atendimento.</p>
+
+      <p id="erro-geral" class="erro-geral" role="alert" hidden></p>
+      <button id="enviar" class="botao" type="submit">Confirmar agendamento</button>
+    </section>
+  </form>
+
+  <section id="retorno" class="sucesso" aria-labelledby="t-retorno" aria-live="polite" hidden>
+    <h2 id="t-retorno">Confirmando seu pagamento</h2>
+    <p id="retorno-msg">Isso leva alguns segundos. Não feche esta página.</p>
+    <p>Código do agendamento: <strong id="retorno-codigo"></strong></p>
+    <div class="acoes">
+      <button id="retorno-novo" class="botao secundario" type="button" hidden>Escolher outro horário</button>
+    </div>
+  </section>
+
+  <section id="sucesso" class="sucesso" aria-labelledby="t-sucesso" tabindex="-1" hidden>
+    <h2 id="t-sucesso">Horário confirmado</h2>
+    <p id="s-resumo"></p>
+    <p id="s-valores" hidden></p>
+    <p>Seu código de agendamento:</p>
+    <span class="codigo" id="s-codigo"></span>
+    <p>Guarde esse código. Se precisar remarcar ou cancelar, é só nos avisar por ele.</p>
+    <div class="acoes">
+      <a id="s-whatsapp" class="botao" href="#" hidden>Falar com a clínica no WhatsApp</a>
+      <button id="novo" class="botao secundario" type="button">Fazer outro agendamento</button>
+    </div>
+  </section>
+</main>
+
+<script>
+  // ====== CONFIGURAÇÃO ======
+  // Endereço do Worker depois do deploy (veja o README). Ex.: https://agenda-estetica.seunome.workers.dev
+  const API_URL = 'https://agenda-estetica.rhavilamaison.workers.dev';
+  // Opcional: número da clínica com DDI e DDD, só dígitos. Ex.: '5562999999999'. Deixe '' para não mostrar o botão.
+  const WHATSAPP_CLINICA = '';
+  const DIAS_NA_FAIXA = 28;
+  // ==========================
+
+  const $ = (id) => document.getElementById(id);
+  const estado = { pagarTudo: false, config: null, servico: null, data: null, hora: null, busca: 0 };
+  const reduzMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const brl = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const partesData = (s) => s.split('-').map(Number);
+  const objData = (s) => { const [a, m, d] = partesData(s); return new Date(Date.UTC(a, m - 1, d)); };
+  const dataLonga = (s) => objData(s).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const duracao = (min) => min < 60 ? `${min} min`
+    : (min % 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min / 60} h`);
+  const somarDias = (s, n) => { const d = objData(s); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+
+  function el(tag, props = {}, ...filhos) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === 'class') e.className = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v);
+    }
+    e.append(...filhos);
+    return e;
+  }
+
+  async function api(caminho, opcoes) {
+    if (API_URL.startsWith('COLOQUE')) {
+      throw new Error('A agenda ainda não foi configurada: falta preencher API_URL no arquivo agendar.html.');
+    }
+    let resposta;
+    try {
+      resposta = await fetch(API_URL + caminho, opcoes);
+    } catch {
+      throw new Error('Não foi possível falar com a agenda. Verifique sua internet e tente de novo.');
+    }
+    const corpo = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) {
+      const e = new Error(corpo.erro || 'Não foi possível concluir. Tente novamente.');
+      e.status = resposta.status;
+      throw e;
+    }
+    return corpo;
+  }
+
+  function rolarPara(secao) {
+    secao.scrollIntoView({ behavior: reduzMovimento ? 'auto' : 'smooth', block: 'start' });
+  }
+
+  // ----- Serviços -----
+  async function iniciar() {
+    const caixa = $('servicos');
+    try {
+      estado.config = await api('/api/config');
+    } catch (e) {
+      caixa.replaceChildren(
+        el('p', { class: 'erro-geral', role: 'alert' }, e.message),
+        el('button', { class: 'botao secundario', type: 'button', onclick: iniciar }, 'Tentar de novo')
+      );
+      return;
+    }
+    const lista = estado.config.servicos;
+    if (!lista.length) {
+      caixa.replaceChildren(el('p', { class: 'aviso' }, 'Nenhum serviço disponível no momento.'));
+      return;
+    }
+    caixa.replaceChildren(...lista.map((s) => {
+      const radio = el('input', { type: 'radio', name: 'servico', value: String(s.id) });
+      radio.addEventListener('change', () => escolherServico(s));
+      return el('label', { class: 'servico' },
+        radio,
+        el('span', { class: 'cartao' },
+          el('span', { class: 'nome' }, s.nome),
+          el('span', { class: 'preco' }, brl(s.preco_centavos)),
+          el('span', { class: 'detalhe' }, [s.descricao, duracao(s.duracao_min)].filter(Boolean).join(' · '))
+        ));
+    }));
+  }
+
+  function escolherServico(servico) {
+    estado.servico = servico;
+    estado.hora = null;
+    montarDias();
+    $('s-dia').hidden = false;
+    if (estado.data) {
+      carregarHorarios();
+    } else {
+      $('s-hora').hidden = true;
+      $('s-dados').hidden = true;
+      rolarPara($('s-dia'));
+    }
+    atualizarResumo();
+  }
+
+  // ----- Dias -----
+  function montarDias() {
+    const { hoje, dias_abertos, max_dias } = estado.config;
+    const total = Math.min(DIAS_NA_FAIXA, max_dias + 1);
+    const botoes = [];
+    for (let i = 0; i < total; i++) {
+      const data = somarDias(hoje, i);
+      const d = objData(data);
+      const aberto = dias_abertos.includes(d.getUTCDay());
+      const b = el('button', { class: 'dia', type: 'button', 'aria-pressed': String(data === estado.data) },
+        el('span', { class: 'sem' }, d.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '')),
+        el('span', { class: 'num' }, String(d.getUTCDate())),
+        el('span', { class: 'mes' }, d.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' }).replace('.', ''))
+      );
+      b.setAttribute('aria-label', dataLonga(data) + (aberto ? '' : ', fechado'));
+      if (!aberto) b.disabled = true;
+      b.addEventListener('click', () => escolherDia(data));
+      botoes.push(b);
+    }
+    $('dias').replaceChildren(...botoes);
+  }
+
+  function escolherDia(data) {
+    estado.data = data;
+    estado.hora = null;
+    document.querySelectorAll('.dia').forEach((b, i) => {
+      b.setAttribute('aria-pressed', String(somarDias(estado.config.hoje, i) === data));
+    });
+    $('s-dados').hidden = true;
+    carregarHorarios();
+  }
+
+  // ----- Horários -----
+  async function carregarHorarios() {
+    const busca = ++estado.busca;
+    const secao = $('s-hora');
+    const msg = $('msg-horas');
+    const grade = $('horas');
+    secao.hidden = false;
+    grade.replaceChildren();
+    msg.hidden = false;
+    msg.textContent = 'Buscando horários…';
+    try {
+      const r = await api(`/api/horarios?servico=${estado.servico.id}&data=${estado.data}`);
+      if (busca !== estado.busca) return; // o cliente já escolheu outro dia ou serviço
+      if (!r.horarios.length) {
+        msg.textContent = 'Sem horários livres neste dia. Escolha outro dia.';
+        return;
+      }
+      msg.hidden = true;
+      grade.replaceChildren(...r.horarios.map((h) => {
+        const b = el('button', { class: 'hora', type: 'button', 'aria-pressed': 'false' }, h);
+        b.addEventListener('click', () => escolherHora(h));
+        return b;
+      }));
+      rolarPara(secao);
+    } catch (e) {
+      if (busca !== estado.busca) return;
+      msg.textContent = e.message;
+    }
+  }
+
+  function escolherHora(hora) {
+    estado.hora = hora;
+    document.querySelectorAll('.hora').forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === hora)));
+    atualizarResumo();
+    $('s-dados').hidden = false;
+    rolarPara($('s-dados'));
+  }
+
+  const valorAPagar = () => (estado.pagarTudo
+    ? estado.servico.preco_centavos
+    : Math.round(estado.servico.preco_centavos * estado.config.percentual / 100));
+  const rotuloEnviar = () => (estado.config.pagamento ? 'Ir para o pagamento' : 'Confirmar agendamento');
+
+  function atualizarResumo() {
+    const { servico, data, hora } = estado;
+    if (!servico || !data || !hora) return;
+    $('r-servico').textContent = servico.nome;
+    $('r-quando').textContent = `${dataLonga(data)}, às ${hora} (${duracao(servico.duracao_min)})`;
+    const sinal = Math.round(servico.preco_centavos * estado.config.percentual / 100);
+    const podeEscolher = estado.config.pagamento && sinal < servico.preco_centavos;
+    if (!podeEscolher) estado.pagarTudo = false;
+    $('escolha-pagamento').hidden = !podeEscolher;
+    $('op-sinal').textContent = `Pagar só o sinal de ${brl(sinal)} agora e o restante na clínica`;
+    $('op-tudo').textContent = `Pagar tudo agora (${brl(servico.preco_centavos)})`;
+    const pagar = valorAPagar();
+    $('r-valor').textContent = pagar < servico.preco_centavos
+      ? `Sinal de ${brl(pagar)} agora (total ${brl(servico.preco_centavos)})`
+      : (estado.config.pagamento ? `${brl(pagar)} (pagamento total agora)` : brl(pagar));
+    const aviso = $('aviso-pagamento');
+    aviso.hidden = !estado.config.pagamento;
+    const restante = servico.preco_centavos - pagar;
+    aviso.textContent = restante > 0
+      ? `Para garantir o horário, você paga um sinal de ${brl(pagar)} agora por Pix ou cartão, em ambiente seguro do Mercado Pago. O restante, ${brl(restante)}, é pago na clínica. O horário fica reservado por ${estado.config.reserva_min} minutos para você concluir o pagamento.`
+      : `Você paga ${brl(pagar)} por Pix ou cartão, em ambiente seguro do Mercado Pago. O horário fica reservado por ${estado.config.reserva_min} minutos para você concluir o pagamento.`;
+    $('enviar').textContent = rotuloEnviar();
+  }
+
+  // ----- Formulário -----
+  function mascaraWhatsapp(v) {
+    const d = v.replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 2) return d;
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  }
+  document.querySelectorAll('input[name="forma"]').forEach((r) => r.addEventListener('change', () => {
+    estado.pagarTudo = r.value === 'tudo' && r.checked;
+    atualizarResumo();
+  }));
+  $('whatsapp').addEventListener('input', (e) => { e.target.value = mascaraWhatsapp(e.target.value); });
+
+  function marcarErro(campo, mensagem) {
+    const caixa = $('e-' + campo);
+    const input = $(campo);
+    caixa.textContent = mensagem || '';
+    caixa.hidden = !mensagem;
+    input.setAttribute('aria-invalid', String(Boolean(mensagem)));
+  }
+
+  function validar() {
+    const nome = $('nome').value.trim();
+    const zap = $('whatsapp').value.replace(/\D/g, '');
+    const email = $('email').value.trim();
+    const erros = {
+      nome: nome.length < 2 ? 'Informe seu nome.' : '',
+      whatsapp: !/^[1-9][1-9]\d{8,9}$/.test(zap) ? 'Informe um WhatsApp válido, com DDD.' : '',
+      email: email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Esse e-mail não parece válido.' : '',
+    };
+    for (const [campo, msg] of Object.entries(erros)) marcarErro(campo, msg);
+    const primeiro = Object.keys(erros).find((c) => erros[c]);
+    if (primeiro) $(primeiro).focus();
+    return !primeiro;
+  }
+
+  $('form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const erroGeral = $('erro-geral');
+    erroGeral.hidden = true;
+    if (!estado.servico || !estado.data || !estado.hora || !validar()) return;
+
+    const botao = $('enviar');
+    botao.disabled = true;
+    botao.textContent = estado.config.pagamento ? 'Abrindo o pagamento…' : 'Confirmando…';
+    try {
+      const r = await api('/api/agendamentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          servico_id: estado.servico.id,
+          data: estado.data,
+          hora: estado.hora,
+          nome: $('nome').value,
+          whatsapp: $('whatsapp').value,
+          email: $('email').value,
+          site: $('site').value,
+          pagar_tudo: estado.pagarTudo,
+        }),
+      });
+      if (r.pagamento_url) {
+        location.href = r.pagamento_url; // página de pagamento do Mercado Pago (Pix ou cartão)
+        return;
+      }
+      mostrarSucesso(r);
+    } catch (e) {
+      erroGeral.textContent = e.message;
+      erroGeral.hidden = false;
+      if (e.status === 409) {
+        // Horário tomado por outra pessoa: atualiza a lista para escolher outro.
+        estado.hora = null;
+        $('s-dados').hidden = true;
+        await carregarHorarios();
+        $('msg-horas').hidden = false;
+        $('msg-horas').textContent = e.message;
+      }
+    } finally {
+      botao.disabled = false;
+      botao.textContent = rotuloEnviar();
+    }
+  });
+
+  function mostrarSucesso(r) {
+    $('form').hidden = true;
+    $('retorno').hidden = true;
+    document.querySelector('.intro').hidden = true;
+    document.querySelector('h1').hidden = true;
+    $('s-resumo').textContent = `${r.servico.nome}, ${dataLonga(r.data)}, às ${r.hora}.`;
+    $('s-codigo').textContent = r.codigo;
+    const total = r.total_centavos || r.servico.preco_centavos;
+    const pago = r.valor_centavos || 0;
+    const valores = $('s-valores');
+    valores.hidden = !(pago > 0);
+    if (!valores.hidden) valores.textContent = total > pago
+      ? `Sinal pago: ${brl(pago)}. Falta pagar ${brl(total - pago)} na clínica.`
+      : `Pagamento total confirmado: ${brl(pago)}. Nada a pagar na clínica.`;
+    if (WHATSAPP_CLINICA) {
+      const texto = encodeURIComponent(`Olá! Meu código de agendamento é ${r.codigo}.`);
+      $('s-whatsapp').href = `https://wa.me/${WHATSAPP_CLINICA}?text=${texto}`;
+      $('s-whatsapp').hidden = false;
+    }
+    const secao = $('sucesso');
+    secao.hidden = false;
+    secao.focus();
+    scrollTo({ top: 0, behavior: reduzMovimento ? 'auto' : 'smooth' });
+  }
+
+  $('novo').addEventListener('click', () => { location.href = location.pathname; });
+
+  // ----- Volta do pagamento -----
+  // O Mercado Pago devolve o cliente para esta página com ?codigo=XXXX (e o número do pagamento).
+  async function verificarRetorno(codigo) {
+    const q = new URLSearchParams(location.search);
+    const pagamento = q.get('payment_id') || q.get('collection_id') || '';
+    const sufixo = /^\d{3,20}$/.test(pagamento) ? `?payment_id=${pagamento}` : '';
+
+    $('form').hidden = true;
+    document.querySelector('.intro').hidden = true;
+    document.querySelector('h1').hidden = true;
+    $('retorno').hidden = false;
+    $('retorno-codigo').textContent = codigo;
+    $('retorno-novo').addEventListener('click', () => { location.href = location.pathname; });
+
+    for (let tentativa = 0; tentativa < 40; tentativa++) {
+      try {
+        const r = await api('/api/agendamentos/' + encodeURIComponent(codigo) + sufixo);
+        if (r.status === 'confirmado') return mostrarSucesso(r);
+        if (r.status === 'expirado' || r.status === 'cancelado') {
+          $('t-retorno').textContent = 'Pagamento não concluído';
+          $('retorno-msg').textContent = 'O prazo para pagar terminou e o horário foi liberado. Escolha um novo horário para tentar de novo.';
+          $('retorno-novo').hidden = false;
+          return;
+        }
+      } catch (e) {
+        if (e.status === 404) break;
+      }
+      await new Promise((ok) => setTimeout(ok, 3000));
+    }
+    $('t-retorno').textContent = 'Ainda não recebemos a confirmação';
+    $('retorno-msg').textContent = 'Se você já pagou, aguarde alguns minutos e atualize esta página. Se não concluiu o pagamento, o horário será liberado automaticamente. Guarde o código abaixo para falar com a clínica.';
+    $('retorno-novo').hidden = false;
+  }
+
+  const codigoNaUrl = (new URLSearchParams(location.search).get('codigo') || '').toUpperCase();
+  if (/^[A-Z0-9]{8}$/.test(codigoNaUrl)) verificarRetorno(codigoNaUrl);
+  else iniciar();
+</script>
+</body>
+</html>

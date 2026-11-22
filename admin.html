@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Painel | Rhavila Maison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --papel: #000000;
+    --cartao: #100D0A;
+    --areia: #1F1810;
+    --linha: #3B3226;
+    --tinta: #F5F1EA;
+    --tinta-suave: #B9B0A4;
+    --preto: #D8B87D;
+    --preto-escuro: #C4A265;
+    --verde: #9CC4A6;
+    --verde-fundo: #14231A;
+    --ambar: #E6C27A;
+    --ambar-fundo: #2A200E;
+    --erro: #E58A9B;
+    --erro-fundo: #2E1118;
+    --serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--papel); color: var(--tinta); font: 400 1rem/1.5 var(--sans); }
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 3px solid var(--preto); outline-offset: 2px; }
+
+  .pagina { max-width: 44rem; margin: 0 auto; padding: 1.25rem 1.25rem 4rem; }
+  .topo { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+  .marca { font: 400 1.25rem/1 var(--serif); }
+  h1 { font: 400 clamp(2.2rem, 7vw, 3rem)/1.05 var(--serif); margin: 1.75rem 0 1.25rem; letter-spacing: -.01em; }
+  h2 { font: 400 1.5rem/1.2 var(--serif); margin: 0 0 .75rem; }
+  h3 { font: 400 1.25rem/1.2 var(--serif); margin: 0; }
+  .suave { color: var(--tinta-suave); }
+  .pequeno { font-size: .9rem; }
+
+  .botao {
+    min-height: 2.75rem; padding: 0 1.1rem; border: 1.5px solid var(--preto); border-radius: 8px;
+    background: var(--preto); color: var(--papel); font: 600 .95rem var(--sans); cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .botao:hover:not(:disabled) { background: var(--preto-escuro); }
+  .botao:disabled { opacity: .55; cursor: progress; }
+  .botao.claro { background: transparent; color: var(--preto); }
+  .botao.claro:hover:not(:disabled) { background: var(--areia); }
+  .botao.perigo { background: transparent; color: var(--erro); border-color: var(--erro); }
+  .botao.perigo:hover:not(:disabled) { background: var(--erro-fundo); }
+  .botao.perigo.sim { background: var(--erro); color: #000; }
+  .botao.mini { min-height: 2.25rem; padding: 0 .8rem; font-size: .88rem; }
+  .botao.largo { width: 100%; min-height: 3.1rem; }
+
+  label { display: block; font-weight: 500; margin-bottom: .3rem; }
+  input[type="text"], input[type="password"], input[type="date"], input[type="time"], input[type="number"], textarea {
+    width: 100%; min-height: 2.9rem; padding: .35rem .8rem; background: var(--cartao); color: inherit;
+    border: 1.5px solid var(--linha); border-radius: 8px; font: inherit;
+  }
+  textarea { min-height: 4.5rem; resize: vertical; }
+  .campo { margin-bottom: 1rem; }
+  .linha { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+
+  .aviso { padding: .75rem 1rem; border-radius: 10px; margin: 0 0 1rem; background: var(--areia); }
+  .aviso.erro { background: var(--erro-fundo); color: #F0B3BE; }
+  .aviso.ok { background: var(--verde-fundo); color: var(--verde); }
+  .aviso.atencao { background: var(--ambar-fundo); color: var(--ambar); }
+
+  /* Login */
+  .login { max-width: 22rem; margin: 4rem auto 0; }
+
+  /* Abas */
+  .abas { display: flex; gap: .25rem; border-bottom: 1.5px solid var(--linha); margin-bottom: 1.5rem; overflow-x: auto; }
+  .aba {
+    min-height: 2.9rem; padding: 0 1rem; background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1.5px;
+    font: 500 1rem var(--sans); color: var(--tinta-suave); cursor: pointer; white-space: nowrap;
+  }
+  .aba[aria-selected="true"] { color: var(--tinta); border-bottom-color: var(--preto); font-weight: 600; }
+
+  /* Agenda */
+  .filtros { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.25rem; }
+  .filtros .botao { min-height: 2.5rem; }
+  .filtros .botao[aria-pressed="true"] { background: var(--preto); color: var(--papel); }
+  .dia-titulo { font: 400 1.35rem/1.2 var(--serif); margin: 1.5rem 0 .6rem; }
+  .dia-titulo::first-letter { text-transform: uppercase; }
+  .dia-titulo:first-child { margin-top: 0; }
+  .item {
+    display: grid; grid-template-columns: 4.2rem 1fr; gap: .25rem 1rem; padding: .9rem 1rem;
+    background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 12px; margin-bottom: .6rem;
+  }
+  .item .hora { font: 400 1.6rem/1.1 var(--serif); font-variant-numeric: tabular-nums; }
+  .item .nome { font-weight: 600; }
+  .item .acoes { grid-column: 2; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .4rem; }
+  .selo { display: inline-block; padding: .05rem .55rem; border-radius: 99px; font-size: .8rem; font-weight: 600; margin-left: .35rem; vertical-align: .1em; }
+  .selo.confirmado { background: var(--verde-fundo); color: var(--verde); }
+  .selo.aguardando_pagamento { background: var(--ambar-fundo); color: var(--ambar); }
+  .selo.cancelado, .selo.expirado { background: var(--areia); color: var(--tinta-suave); }
+  .item.apagado { opacity: .6; }
+  a.link { color: var(--preto); font-weight: 600; }
+
+  /* Folgas e serviços */
+  .cartao { background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 14px; padding: 1.1rem; margin-bottom: 1.5rem; }
+  .lista-simples { list-style: none; margin: 0; padding: 0; }
+  .lista-simples li { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .7rem 0; border-top: 1px solid var(--linha); }
+  .lista-simples li:first-child { border-top: 0; }
+  .servico-card { background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 14px; padding: 1rem 1.1rem; margin-bottom: .75rem; }
+  .servico-card.inativo { opacity: .65; }
+  .servico-topo { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+  .vazio { padding: 2rem 0; text-align: center; color: var(--tinta-suave); }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  :root { color-scheme: dark; }
+</style>
+</head>
+<body>
+<main class="pagina">
+  <div class="topo">
+    <span class="marca">Rhavila Maison</span>
+    <button id="sair" class="botao claro mini" type="button" hidden>Sair</button>
+  </div>
+
+  <!-- Entrar -->
+  <section id="tela-login" class="login">
+    <h1>Painel</h1>
+    <form id="form-login" novalidate>
+      <div class="campo">
+        <label for="senha">Senha</label>
+        <input id="senha" type="password" autocomplete="current-password" required>
+      </div>
+      <p id="erro-login" class="aviso erro" role="alert" hidden></p>
+      <button class="botao largo" type="submit" id="entrar">Entrar</button>
+    </form>
+  </section>
+
+  <!-- Painel -->
+  <section id="tela-painel" hidden>
+    <h1>Painel</h1>
+    <p id="aviso-geral" class="aviso" role="status" hidden></p>
+
+    <div class="abas" role="tablist" aria-label="Seções do painel">
+      <button class="aba" role="tab" id="aba-agenda" aria-controls="painel-agenda" aria-selected="true" type="button">Agenda</button>
+      <button class="aba" role="tab" id="aba-folgas" aria-controls="painel-folgas" aria-selected="false" type="button">Folgas</button>
+      <button class="aba" role="tab" id="aba-servicos" aria-controls="painel-servicos" aria-selected="false" type="button">Serviços</button>
+    </div>
+
+    <!-- Agenda -->
+    <div id="painel-agenda" role="tabpanel" aria-labelledby="aba-agenda">
+      <div class="filtros" id="filtros">
+        <button class="botao claro" type="button" data-periodo="hoje" aria-pressed="true">Hoje</button>
+        <button class="botao claro" type="button" data-periodo="7" aria-pressed="false">Próximos 7 dias</button>
+        <button class="botao claro" type="button" data-periodo="30" aria-pressed="false">Próximos 30 dias</button>
+      </div>
+      <div id="agenda"></div>
+    </div>
+
+    <!-- Folgas -->
+    <div id="painel-folgas" role="tabpanel" aria-labelledby="aba-folgas" hidden>
+      <form id="form-folga" class="cartao" novalidate>
+        <h2>Bloquear um dia ou horário</h2>
+        <div class="campo">
+          <label for="f-data">Dia</label>
+          <input id="f-data" type="date" required>
+        </div>
+        <div class="linha">
+          <div class="campo">
+            <label for="f-inicio">Das <span class="suave">(vazio = o dia todo)</span></label>
+            <input id="f-inicio" type="time">
+          </div>
+          <div class="campo">
+            <label for="f-fim">Até</label>
+            <input id="f-fim" type="time">
+          </div>
+        </div>
+        <div class="campo">
+          <label for="f-motivo">Motivo <span class="suave">(só você vê)</span></label>
+          <input id="f-motivo" type="text" maxlength="100">
+        </div>
+        <p id="erro-folga" class="aviso erro" role="alert" hidden></p>
+        <button class="botao" type="submit">Bloquear</button>
+      </form>
+      <h2>Folgas marcadas</h2>
+      <ul id="lista-folgas" class="lista-simples"></ul>
+    </div>
+
+    <!-- Serviços -->
+    <div id="painel-servicos" role="tabpanel" aria-labelledby="aba-servicos" hidden>
+      <div id="lista-servicos"></div>
+      <form id="form-servico" class="cartao" novalidate>
+        <h2 id="t-servico">Novo serviço</h2>
+        <input type="hidden" id="s-id">
+        <div class="campo">
+          <label for="s-nome">Nome</label>
+          <input id="s-nome" type="text" maxlength="80" required>
+        </div>
+        <div class="campo">
+          <label for="s-descricao">Descrição <span class="suave">(aparece para o cliente)</span></label>
+          <textarea id="s-descricao" maxlength="200"></textarea>
+        </div>
+        <div class="linha">
+          <div class="campo">
+            <label for="s-duracao">Duração (minutos)</label>
+            <input id="s-duracao" type="number" min="5" max="480" step="5" inputmode="numeric" required>
+          </div>
+          <div class="campo">
+            <label for="s-preco">Preço (R$)</label>
+            <input id="s-preco" type="text" inputmode="decimal" placeholder="150,00" required>
+          </div>
+        </div>
+        <p id="erro-servico" class="aviso erro" role="alert" hidden></p>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap">
+          <button class="botao" type="submit" id="salvar-servico">Adicionar serviço</button>
+          <button class="botao claro" type="button" id="cancelar-edicao" hidden>Cancelar edição</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<script>
+  // ====== CONFIGURAÇÃO ======
+  // Endereço da API (o publicar.mjs preenche sozinho). Local: http://127.0.0.1:8787
+  const API_URL = 'https://agenda-estetica.rhavilamaison.workers.dev';
+  // ==========================
+
+  const $ = (id) => document.getElementById(id);
+  const brl = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const duracao = (min) => min < 60 ? `${min} min` : (min % 60 ? `${Math.floor(min / 60)} h ${min % 60} min` : `${min / 60} h`);
+  const dataLonga = (s) => new Date(`${s}T00:00:00Z`).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const hojeBR = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const somarDias = (s, n) => { const d = new Date(`${s}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const rotulos = { confirmado: 'Confirmado', aguardando_pagamento: 'Aguardando pagamento', cancelado: 'Cancelado', expirado: 'Expirado' };
+
+  function el(tag, props = {}, ...filhos) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === 'class') e.className = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v);
+    }
+    e.append(...filhos.filter((f) => f !== null && f !== undefined && f !== false));
+    return e;
+  }
+
+  // Guarda a senha só enquanto a aba estiver aberta.
+  const guardar = {
+    ler() { try { return sessionStorage.getItem('painel-senha') || ''; } catch { return ''; } },
+    gravar(v) { try { v ? sessionStorage.setItem('painel-senha', v) : sessionStorage.removeItem('painel-senha'); } catch { /* sem armazenamento */ } },
+  };
+  let senha = guardar.ler();
+
+  async function api(caminho, { metodo = 'GET', corpo } = {}) {
+    let resposta;
+    try {
+      resposta = await fetch(API_URL + '/api/admin' + caminho, {
+        method: metodo,
+        headers: { Authorization: 'Bearer ' + senha, ...(corpo ? { 'Content-Type': 'application/json' } : {}) },
+        body: corpo ? JSON.stringify(corpo) : undefined,
+      });
+    } catch {
+      throw Object.assign(new Error('Não foi possível falar com a agenda. Verifique a internet e se a API está no ar.'), { rede: true });
+    }
+    const dados = await resposta.json().catch(() => ({}));
+    if (resposta.status === 401) { sair(); throw Object.assign(new Error(dados.erro || 'Senha incorreta.'), { status: 401 }); }
+    if (!resposta.ok) throw Object.assign(new Error(dados.erro || 'Não foi possível concluir.'), { status: resposta.status });
+    return dados;
+  }
+
+  function mostrarAviso(texto, tipo = '') {
+    const a = $('aviso-geral');
+    a.className = 'aviso ' + tipo;
+    a.textContent = texto;
+    a.hidden = !texto;
+    if (texto) a.scrollIntoView({ block: 'nearest' });
+  }
+
+  // ----- Entrar e sair -----
+  function abrirPainel() {
+    $('tela-login').hidden = true;
+    $('tela-painel').hidden = false;
+    $('sair').hidden = false;
+    carregarAgenda();
+  }
+  function sair() {
+    senha = '';
+    guardar.gravar('');
+    $('tela-painel').hidden = true;
+    $('tela-login').hidden = false;
+    $('sair').hidden = true;
+    $('senha').value = '';
+  }
+  $('sair').addEventListener('click', sair);
+
+  $('form-login').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const erro = $('erro-login');
+    erro.hidden = true;
+    const digitada = $('senha').value;
+    if (!digitada) { erro.textContent = 'Digite a senha.'; erro.hidden = false; return; }
+    const botao = $('entrar');
+    botao.disabled = true;
+    botao.textContent = 'Entrando…';
+    senha = digitada;
+    try {
+      await api('/ping');
+      guardar.gravar(senha);
+      abrirPainel();
+    } catch (e) {
+      senha = '';
+      erro.textContent = e.status === 404 ? 'O painel ainda não está ativado na API (falta a senha ADMIN_SENHA).' : e.message;
+      erro.hidden = false;
+    } finally {
+      botao.disabled = false;
+      botao.textContent = 'Entrar';
+    }
+  });
+
+  // ----- Abas -----
+  const abas = { agenda: carregarAgenda, folgas: carregarFolgas, servicos: carregarServicos };
+  for (const nome of Object.keys(abas)) {
+    $('aba-' + nome).addEventListener('click', () => {
+      for (const outro of Object.keys(abas)) {
+        $('aba-' + outro).setAttribute('aria-selected', String(outro === nome));
+        $('painel-' + outro).hidden = outro !== nome;
+      }
+      mostrarAviso('');
+      abas[nome]();
+    });
+  }
+
+  // ----- Agenda -----
+  let periodo = 'hoje';
+  $('filtros').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-periodo]');
+    if (!b) return;
+    periodo = b.dataset.periodo;
+    document.querySelectorAll('#filtros button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    carregarAgenda();
+  });
+
+  async function carregarAgenda() {
+    const caixa = $('agenda');
+    const de = hojeBR();
+    const ate = periodo === 'hoje' ? de : somarDias(de, Number(periodo));
+    caixa.replaceChildren(el('p', { class: 'vazio' }, 'Carregando…'));
+    try {
+      const r = await api(`/agendamentos?de=${de}&ate=${ate}`);
+      if (!r.agendamentos.length) {
+        caixa.replaceChildren(el('p', { class: 'vazio' }, periodo === 'hoje' ? 'Nenhum atendimento hoje.' : 'Nenhum atendimento nesse período.'));
+        return;
+      }
+      const porDia = new Map();
+      for (const a of r.agendamentos) porDia.set(a.data, [...(porDia.get(a.data) ?? []), a]);
+      const blocos = [];
+      for (const [dia, lista] of porDia) {
+        blocos.push(el('h3', { class: 'dia-titulo' }, dataLonga(dia)));
+        blocos.push(...lista.map(cartaoAgendamento));
+      }
+      caixa.replaceChildren(...blocos);
+    } catch (e) {
+      if (e.status !== 401) caixa.replaceChildren(el('p', { class: 'aviso erro', role: 'alert' }, e.message));
+    }
+  }
+
+  function cartaoAgendamento(a) {
+    const zap = '55' + a.whatsapp;
+    const texto = encodeURIComponent(`Olá, ${a.nome.split(' ')[0]}! Aqui é da Rhavila Maison sobre o seu horário (${a.servico}, ${dataLonga(a.data)}, às ${a.hora}).`);
+    const acoes = el('div', { class: 'acoes' },
+      el('a', { class: 'link pequeno', href: `https://wa.me/${zap}?text=${texto}`, target: '_blank', rel: 'noopener' }, 'Chamar no WhatsApp')
+    );
+    if (a.status === 'confirmado' || a.status === 'aguardando_pagamento') {
+      const botao = el('button', { class: 'botao perigo mini', type: 'button' }, 'Cancelar');
+      let armado = false;
+      botao.addEventListener('click', async () => {
+        if (!armado) {
+          armado = true;
+          botao.textContent = 'Tem certeza? Toque de novo';
+          botao.classList.add('sim');
+          setTimeout(() => { armado = false; botao.textContent = 'Cancelar'; botao.classList.remove('sim'); }, 5000);
+          return;
+        }
+        botao.disabled = true;
+        try {
+          const r = await api(`/agendamentos/${a.codigo}/cancelar`, { metodo: 'POST' });
+          mostrarAviso(
+            r.reembolso_pendente
+              ? `Agendamento de ${a.nome} cancelado. Atenção: ele já tinha pago ${brl(a.valor_centavos)}. Reembolse no painel do Mercado Pago (pagamento ${r.pagamento_id}).`
+              : `Agendamento de ${a.nome} cancelado. O horário já está livre de novo.`,
+            r.reembolso_pendente ? 'atencao' : 'ok'
+          );
+          carregarAgenda();
+        } catch (e) {
+          botao.disabled = false;
+          if (e.status !== 401) mostrarAviso(e.message, 'erro');
+        }
+      });
+      acoes.append(botao);
+    }
+    // Sinal pago online e o que falta na clínica (dinheiro, Pix ou cartão).
+    const total = a.preco_total_centavos || 0;
+    let valor = '';
+    if (a.valor_centavos > 0) {
+      const pago = a.status === 'confirmado';
+      valor = total > a.valor_centavos
+        ? ` · sinal ${brl(a.valor_centavos)}${pago ? ' pago' : ' a pagar'}${pago ? ` · falta ${brl(total - a.valor_centavos)} na clínica` : ''}`
+        : ` · ${brl(a.valor_centavos)}${pago ? ' pago' : ' a pagar'}`;
+    }
+    return el('div', { class: 'item' + (a.status === 'cancelado' || a.status === 'expirado' ? ' apagado' : '') },
+      el('div', { class: 'hora' }, a.hora),
+      el('div', {},
+        el('div', { class: 'nome' }, a.nome, el('span', { class: 'selo ' + a.status }, rotulos[a.status] ?? a.status)),
+        el('div', { class: 'suave pequeno' }, `${a.servico} (${duracao(a.duracao_min)})${valor}`),
+        el('div', { class: 'suave pequeno' }, `${formatarZap(a.whatsapp)}${a.email ? ' · ' + a.email : ''} · código ${a.codigo}`)
+      ),
+      acoes
+    );
+  }
+
+  function formatarZap(n) {
+    return n.length === 11 ? `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}` : `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  }
+
+  // ----- Folgas -----
+  async function carregarFolgas() {
+    $('f-data').min = hojeBR();
+    const lista = $('lista-folgas');
+    try {
+      const r = await api('/bloqueios');
+      if (!r.bloqueios.length) { lista.replaceChildren(el('li', { class: 'suave' }, 'Nenhuma folga marcada.')); return; }
+      lista.replaceChildren(...r.bloqueios.map((b) => {
+        const inteiro = b.inicio === '00:00' && b.fim === '24:00';
+        const botao = el('button', { class: 'botao perigo mini', type: 'button' }, 'Remover');
+        botao.addEventListener('click', async () => {
+          botao.disabled = true;
+          try { await api(`/bloqueios/${b.id}`, { metodo: 'DELETE' }); carregarFolgas(); }
+          catch (e) { botao.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+        });
+        return el('li', {},
+          el('span', {}, el('strong', {}, dataLonga(b.data)), el('br'),
+            el('span', { class: 'suave pequeno' }, (inteiro ? 'Dia todo' : `${b.inicio} às ${b.fim}`) + (b.motivo ? ` · ${b.motivo}` : ''))),
+          botao);
+      }));
+    } catch (e) {
+      if (e.status !== 401) lista.replaceChildren(el('li', { class: 'aviso erro' }, e.message));
+    }
+  }
+
+  $('form-folga').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const erro = $('erro-folga');
+    erro.hidden = true;
+    const data = $('f-data').value;
+    if (!data) { erro.textContent = 'Escolha o dia.'; erro.hidden = false; return; }
+    try {
+      const r = await api('/bloqueios', {
+        metodo: 'POST',
+        corpo: { data, inicio: $('f-inicio').value, fim: $('f-fim').value, motivo: $('f-motivo').value },
+      });
+      ev.target.reset();
+      if (r.conflitos.length) {
+        mostrarAviso(
+          `Bloqueado, mas ${r.conflitos.length === 1 ? 'já existe 1 cliente marcada' : 'já existem ' + r.conflitos.length + ' clientes marcadas'} nesse período: ` +
+          r.conflitos.map((c) => `${c.nome} (${c.hora})`).join(', ') +
+          '. O bloqueio não cancela ninguém: veja na aba Agenda e avise cada uma.',
+          'atencao'
+        );
+      } else {
+        mostrarAviso('Folga marcada. Esse período não aparece mais para os clientes.', 'ok');
+      }
+      carregarFolgas();
+    } catch (e) {
+      if (e.status !== 401) { erro.textContent = e.message; erro.hidden = false; }
+    }
+  });
+
+  // ----- Serviços -----
+  let servicos = [];
+  const centavos = (txt) => {
+    const limpo = String(txt).replace(/[R$\s.]/g, '').replace(',', '.');
+    if (!/^\d+(\.\d{1,2})?$/.test(limpo)) return NaN;
+    return Math.round(parseFloat(limpo) * 100);
+  };
+
+  async function carregarServicos() {
+    const caixa = $('lista-servicos');
+    try {
+      servicos = (await api('/servicos')).servicos;
+      caixa.replaceChildren(...servicos.map((s) => {
+        const editar = el('button', { class: 'botao claro mini', type: 'button' }, 'Editar');
+        editar.addEventListener('click', () => editarServico(s));
+        const alternar = el('button', { class: 'botao claro mini', type: 'button' }, s.ativo ? 'Desativar' : 'Reativar');
+        alternar.addEventListener('click', async () => {
+          alternar.disabled = true;
+          try {
+            await api(`/servicos/${s.id}`, { metodo: 'PUT', corpo: { ...s, ativo: s.ativo ? 0 : 1 } });
+            carregarServicos();
+          } catch (e) { alternar.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+        });
+        return el('div', { class: 'servico-card' + (s.ativo ? '' : ' inativo') },
+          el('div', { class: 'servico-topo' },
+            el('div', {}, el('h3', {}, s.nome), el('div', { class: 'suave pequeno' }, `${duracao(s.duracao_min)} · ${brl(s.preco_centavos)}${s.ativo ? '' : ' · desativado (não aparece para os clientes)'}`)),
+            el('div', { style: 'display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end' }, editar, alternar)),
+          s.descricao ? el('p', { class: 'suave pequeno', style: 'margin:.5rem 0 0' }, s.descricao) : null);
+      }));
+    } catch (e) {
+      if (e.status !== 401) caixa.replaceChildren(el('p', { class: 'aviso erro' }, e.message));
+    }
+  }
+
+  function editarServico(s) {
+    $('t-servico').textContent = 'Editar serviço';
+    $('s-id').value = s.id;
+    $('s-nome').value = s.nome;
+    $('s-descricao').value = s.descricao ?? '';
+    $('s-duracao').value = s.duracao_min;
+    $('s-preco').value = (s.preco_centavos / 100).toFixed(2).replace('.', ',');
+    $('salvar-servico').textContent = 'Salvar alterações';
+    $('cancelar-edicao').hidden = false;
+    $('form-servico').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('s-nome').focus();
+  }
+  function limparFormServico() {
+    $('form-servico').reset();
+    $('s-id').value = '';
+    $('t-servico').textContent = 'Novo serviço';
+    $('salvar-servico').textContent = 'Adicionar serviço';
+    $('cancelar-edicao').hidden = true;
+  }
+  $('cancelar-edicao').addEventListener('click', limparFormServico);
+
+  $('form-servico').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const erro = $('erro-servico');
+    erro.hidden = true;
+    const preco = centavos($('s-preco').value);
+    if (Number.isNaN(preco)) { erro.textContent = 'Preço inválido. Use o formato 150,00.'; erro.hidden = false; return; }
+    const id = $('s-id').value;
+    const atual = servicos.find((s) => String(s.id) === id);
+    const corpo = {
+      nome: $('s-nome').value,
+      descricao: $('s-descricao').value,
+      duracao_min: Number($('s-duracao').value),
+      preco_centavos: preco,
+      ativo: atual ? atual.ativo : 1,
+    };
+    try {
+      await api(id ? `/servicos/${id}` : '/servicos', { metodo: id ? 'PUT' : 'POST', corpo });
+      mostrarAviso(id ? 'Serviço atualizado. Agendamentos que já existem mantêm o preço e a duração de quando foram feitos.' : 'Serviço adicionado. Já aparece para os clientes.', 'ok');
+      limparFormServico();
+      carregarServicos();
+    } catch (e) {
+      if (e.status !== 401) { erro.textContent = e.message; erro.hidden = false; }
+    }
+  });
+
+  if (senha) {
+    api('/ping').then(abrirPainel).catch(() => {});
+  }
+</script>
+</body>
+</html>
