@@ -6,7 +6,7 @@
 <title>Agendar horário | Rhavila Maison</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --papel: #000000;
@@ -20,7 +20,7 @@
     --salvia: #9CC4A6;
     --erro: #E58A9B;
     --serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --sans: "Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -55,6 +55,8 @@
   .servico input:focus-visible + .cartao { outline: 3px solid var(--preto); outline-offset: 2px; }
   .servico .nome { font: 400 1.35rem/1.2 var(--serif); }
   .servico .preco { font-weight: 600; white-space: nowrap; align-self: start; }
+  .servico .riscado { color: var(--tinta-suave); font-weight: 400; font-size: .9rem; text-decoration: line-through; margin-right: .35rem; }
+  .servico .selo-promo { grid-column: 1 / -1; color: var(--preto); font-size: .86rem; font-weight: 600; letter-spacing: .03em; }
   .servico .detalhe { grid-column: 1 / -1; color: var(--tinta-suave); font-size: .92rem; }
 
   /* Dias */
@@ -259,7 +261,7 @@
       else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
       else e.setAttribute(k, v);
     }
-    e.append(...filhos);
+    e.append(...filhos.filter((f) => f !== null && f !== undefined && f !== false));
     return e;
   }
 
@@ -277,6 +279,7 @@
     if (!resposta.ok) {
       const e = new Error(corpo.erro || 'Não foi possível concluir. Tente novamente.');
       e.status = resposta.status;
+      e.codigo = corpo.codigo;
       throw e;
     }
     return corpo;
@@ -287,6 +290,7 @@
   }
 
   // ----- Serviços -----
+  const textoPromocao = (p) => `${p.rotulo} · ${p.vagas_restantes === 1 ? 'resta 1 vaga' : `restam ${p.vagas_restantes} vagas`}${p.ate ? ' · até ' + p.ate.split('-').reverse().join('/') : ''}`;
   async function iniciar() {
     const caixa = $('servicos');
     try {
@@ -310,7 +314,8 @@
         radio,
         el('span', { class: 'cartao' },
           el('span', { class: 'nome' }, s.nome),
-          el('span', { class: 'preco' }, brl(s.preco_centavos)),
+          el('span', { class: 'preco' }, s.promocao ? el('span', { class: 'riscado' }, brl(s.preco_normal_centavos)) : null, brl(s.preco_centavos)),
+          s.promocao ? el('span', { class: 'selo-promo' }, textoPromocao(s.promocao)) : null,
           el('span', { class: 'detalhe' }, [s.descricao, duracao(s.duracao_min)].filter(Boolean).join(' · '))
         ));
     }));
@@ -409,7 +414,7 @@
   function atualizarResumo() {
     const { servico, data, hora } = estado;
     if (!servico || !data || !hora) return;
-    $('r-servico').textContent = servico.nome;
+    $('r-servico').textContent = servico.nome + (servico.promocao ? ' · ' + servico.promocao.rotulo : '');
     $('r-quando').textContent = `${dataLonga(data)}, às ${hora} (${duracao(servico.duracao_min)})`;
     const sinal = Math.round(servico.preco_centavos * estado.config.percentual / 100);
     const podeEscolher = estado.config.pagamento && sinal < servico.preco_centavos;
@@ -489,6 +494,7 @@
           email: $('email').value,
           site: $('site').value,
           pagar_tudo: estado.pagarTudo,
+          preco_esperado_centavos: estado.servico.preco_centavos,
         }),
       });
       if (r.pagamento_url) {
@@ -499,6 +505,12 @@
     } catch (e) {
       erroGeral.textContent = e.message;
       erroGeral.hidden = false;
+      if (e.codigo === 'preco_mudou') {
+        // A promoção acabou (ou mudou) enquanto a pessoa preenchia: recarrega para mostrar o valor atual.
+        erroGeral.textContent = e.message + ' A página vai ser atualizada.';
+        setTimeout(() => location.reload(), 4500);
+        return;
+      }
       if (e.status === 409) {
         // Horário tomado por outra pessoa: atualiza a lista para escolher outro.
         estado.hora = null;

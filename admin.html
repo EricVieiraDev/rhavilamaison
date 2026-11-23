@@ -7,7 +7,7 @@
 <title>Painel | Rhavila Maison</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --papel: #000000;
@@ -25,7 +25,7 @@
     --erro: #E58A9B;
     --erro-fundo: #2E1118;
     --serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --sans: "Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
@@ -58,12 +58,16 @@
   .botao.largo { width: 100%; min-height: 3.1rem; }
 
   label { display: block; font-weight: 500; margin-bottom: .3rem; }
-  input[type="text"], input[type="password"], input[type="date"], input[type="time"], input[type="number"], textarea {
+  input[type="text"], input[type="password"], input[type="date"], input[type="time"], input[type="number"], select, textarea {
     width: 100%; min-height: 2.9rem; padding: .35rem .8rem; background: var(--cartao); color: inherit;
     border: 1.5px solid var(--linha); border-radius: 8px; font: inherit;
   }
   textarea { min-height: 4.5rem; resize: vertical; }
   .campo { margin-bottom: 1rem; }
+  .barra { height: .55rem; border-radius: 99px; background: var(--linha); overflow: hidden; margin: .6rem 0 .3rem; }
+  .barra > i { display: block; height: 100%; background: var(--preto); }
+  .promo-acoes { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-top: .7rem; }
+  .promo-acoes input[type="number"] { width: 6rem; min-height: 2.4rem; }
   .linha { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
 
   .aviso { padding: .75rem 1rem; border-radius: 10px; margin: 0 0 1rem; background: var(--areia); }
@@ -146,6 +150,7 @@
       <button class="aba" role="tab" id="aba-agenda" aria-controls="painel-agenda" aria-selected="true" type="button">Agenda</button>
       <button class="aba" role="tab" id="aba-folgas" aria-controls="painel-folgas" aria-selected="false" type="button">Folgas</button>
       <button class="aba" role="tab" id="aba-servicos" aria-controls="painel-servicos" aria-selected="false" type="button">Serviços</button>
+      <button class="aba" role="tab" id="aba-promocoes" aria-controls="painel-promocoes" aria-selected="false" type="button">Promoções</button>
     </div>
 
     <!-- Agenda -->
@@ -216,6 +221,39 @@
           <button class="botao" type="submit" id="salvar-servico">Adicionar serviço</button>
           <button class="botao claro" type="button" id="cancelar-edicao" hidden>Cancelar edição</button>
         </div>
+      </form>
+    </div>
+
+    <!-- Promoções -->
+    <div id="painel-promocoes" role="tabpanel" aria-labelledby="aba-promocoes" hidden>
+      <p class="suave">Abra um número limitado de vagas com preço especial. Quando as vagas acabam, o preço volta ao normal sozinho. Quem cancela devolve a vaga.</p>
+      <div id="lista-promocoes"></div>
+      <form id="form-promocao" class="cartao" novalidate>
+        <h2>Nova promoção</h2>
+        <div class="campo">
+          <label for="p-servico">Serviço</label>
+          <select id="p-servico" required></select>
+        </div>
+        <div class="linha">
+          <div class="campo">
+            <label for="p-preco">Preço promocional (R$)</label>
+            <input id="p-preco" type="text" inputmode="decimal" placeholder="99,00" required>
+          </div>
+          <div class="campo">
+            <label for="p-vagas">Número de vagas</label>
+            <input id="p-vagas" type="number" min="1" max="1000" inputmode="numeric" value="20" required>
+          </div>
+        </div>
+        <div class="campo">
+          <label for="p-nome">Nome da promoção <span class="suave">(aparece para o cliente)</span></label>
+          <input id="p-nome" type="text" maxlength="40" value="Promoção de lançamento">
+        </div>
+        <div class="campo">
+          <label for="p-fim">Vale até <span class="suave">(opcional: último dia para agendar)</span></label>
+          <input id="p-fim" type="date">
+        </div>
+        <p id="erro-promocao" class="aviso erro" role="alert" hidden></p>
+        <button class="botao" type="submit">Criar promoção</button>
       </form>
     </div>
   </section>
@@ -320,7 +358,7 @@
   });
 
   // ----- Abas -----
-  const abas = { agenda: carregarAgenda, folgas: carregarFolgas, servicos: carregarServicos };
+  const abas = { agenda: carregarAgenda, folgas: carregarFolgas, servicos: carregarServicos, promocoes: carregarPromocoes };
   for (const nome of Object.keys(abas)) {
     $('aba-' + nome).addEventListener('click', () => {
       for (const outro of Object.keys(abas)) {
@@ -409,6 +447,7 @@
         ? ` · sinal ${brl(a.valor_centavos)}${pago ? ' pago' : ' a pagar'}${pago ? ` · falta ${brl(total - a.valor_centavos)} na clínica` : ''}`
         : ` · ${brl(a.valor_centavos)}${pago ? ' pago' : ' a pagar'}`;
     }
+    if (a.promocao_id) valor += ' · promoção';
     return el('div', { class: 'item' + (a.status === 'cancelado' || a.status === 'expirado' ? ' apagado' : '') },
       el('div', { class: 'hora' }, a.hora),
       el('div', {},
@@ -552,6 +591,79 @@
       mostrarAviso(id ? 'Serviço atualizado. Agendamentos que já existem mantêm o preço e a duração de quando foram feitos.' : 'Serviço adicionado. Já aparece para os clientes.', 'ok');
       limparFormServico();
       carregarServicos();
+    } catch (e) {
+      if (e.status !== 401) { erro.textContent = e.message; erro.hidden = false; }
+    }
+  });
+
+  // ----- Promoções -----
+  const SITUACAO = {
+    vigente: ['Valendo', 'confirmado'], esgotada: ['Vagas esgotadas', 'aguardando_pagamento'], encerrada: ['Encerrada', 'cancelado'],
+    pausada: ['Pausada', 'cancelado'], agendada: ['Ainda não começou', 'cancelado'],
+  };
+
+  async function carregarPromocoes() {
+    const caixa = $('lista-promocoes');
+    try {
+      const [{ promocoes }, { servicos: lista }] = await Promise.all([api('/promocoes'), api('/servicos')]);
+      const seletor = $('p-servico');
+      const marcado = seletor.value;
+      seletor.replaceChildren(...lista.filter((s) => s.ativo).map((s) =>
+        el('option', { value: String(s.id) }, `${s.nome} (${brl(s.preco_centavos)})`)));
+      if (marcado) seletor.value = marcado;
+      caixa.replaceChildren(...(promocoes.length ? promocoes.map(cartaoPromocao)
+        : [el('p', { class: 'suave' }, 'Nenhuma promoção criada ainda.')]));
+    } catch (e) {
+      if (e.status !== 401) caixa.replaceChildren(el('p', { class: 'aviso erro' }, e.message));
+    }
+  }
+
+  function cartaoPromocao(p) {
+    const [rotuloSit, cor] = SITUACAO[p.situacao] ?? [p.situacao, ''];
+    const pct = Math.min(100, Math.round((p.usadas / p.vagas) * 100));
+    const restantes = Math.max(0, p.vagas - p.usadas);
+    const campoVagas = el('input', { type: 'number', min: String(Math.max(1, p.usadas)), max: '1000', value: String(p.vagas), 'aria-label': 'Número de vagas' });
+    const salvarVagas = el('button', { class: 'botao claro mini', type: 'button' }, 'Salvar vagas');
+    salvarVagas.addEventListener('click', async () => {
+      salvarVagas.disabled = true;
+      try { await api(`/promocoes/${p.id}`, { metodo: 'PUT', corpo: { vagas: Number(campoVagas.value) } }); mostrarAviso('Vagas atualizadas.', 'ok'); carregarPromocoes(); }
+      catch (e) { salvarVagas.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+    });
+    const alternar = el('button', { class: 'botao claro mini', type: 'button' }, p.ativa ? 'Pausar' : 'Retomar');
+    alternar.addEventListener('click', async () => {
+      alternar.disabled = true;
+      try { await api(`/promocoes/${p.id}`, { metodo: 'PUT', corpo: { ativa: p.ativa ? 0 : 1 } }); carregarPromocoes(); }
+      catch (e) { alternar.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+    });
+    return el('div', { class: 'servico-card' + (p.ativa ? '' : ' inativo') },
+      el('div', { class: 'servico-topo' },
+        el('div', {},
+          el('h3', {}, `${p.rotulo} · ${p.servico}`),
+          el('div', { class: 'suave pequeno' }, `${brl(p.preco_centavos)} (normal: ${brl(p.preco_normal_centavos)})${p.fim ? ' · até ' + p.fim.split('-').reverse().join('/') : ''}`)),
+        el('span', { class: 'selo ' + cor }, rotuloSit)),
+      el('div', { class: 'barra', role: 'img', 'aria-label': `${p.usadas} de ${p.vagas} vagas usadas` }, el('i', { style: `width:${pct}%` })),
+      el('div', { class: 'pequeno' }, `${p.usadas} de ${p.vagas} vagas usadas · ${restantes === 1 ? 'resta 1' : `restam ${restantes}`}`),
+      el('div', { class: 'promo-acoes' }, campoVagas, salvarVagas, alternar));
+  }
+
+  $('form-promocao').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const erro = $('erro-promocao');
+    erro.hidden = true;
+    const preco = centavos($('p-preco').value);
+    if (Number.isNaN(preco)) { erro.textContent = 'Preço inválido. Use o formato 99,00.'; erro.hidden = false; return; }
+    const corpo = {
+      servico_id: Number($('p-servico').value),
+      preco_centavos: preco,
+      vagas: Number($('p-vagas').value),
+      rotulo: $('p-nome').value,
+      fim: $('p-fim').value || null,
+    };
+    try {
+      await api('/promocoes', { metodo: 'POST', corpo });
+      mostrarAviso('Promoção criada. Já aparece para os clientes, com o contador de vagas.', 'ok');
+      $('p-preco').value = ''; $('p-fim').value = '';
+      carregarPromocoes();
     } catch (e) {
       if (e.status !== 401) { erro.textContent = e.message; erro.hidden = false; }
     }
