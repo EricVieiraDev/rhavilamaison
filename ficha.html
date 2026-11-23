@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Ficha de anamnese | Rhavila Maison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --papel: #000000;
+    --cartao: #100D0A;
+    --areia: #1F1810;
+    --linha: #3B3226;
+    --tinta: #F5F1EA;
+    --tinta-suave: #B9B0A4;
+    --ouro: #D8B87D;
+    --ouro-escuro: #C4A265;
+    --verde: #9CC4A6;
+    --erro: #E58A9B;
+    --serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--papel); color: var(--tinta); font: 400 1rem/1.5 var(--sans); }
+  [hidden] { display: none !important; }
+  button, input, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--ouro); outline-offset: 2px; }
+
+  .pagina { max-width: 46rem; margin: 0 auto; padding: 1.25rem 1.25rem 5rem; }
+  .topo { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .marca { font: 400 1.35rem/1 var(--serif); color: var(--ouro); text-decoration: none; }
+  h1 { font: 400 clamp(2.2rem, 7vw, 3.2rem)/1.05 var(--serif); margin: 1.8rem 0 .4rem; }
+  h2 { font: 400 1.7rem/1.15 var(--serif); margin: 0 0 1rem; color: var(--tinta); }
+  .suave { color: var(--tinta-suave); }
+  .pequeno { font-size: .9rem; }
+
+  .botao {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 2.9rem; padding: 0 1.3rem;
+    border-radius: 8px; border: 1.5px solid var(--ouro); background: transparent; color: var(--ouro);
+    font-weight: 600; cursor: pointer; transition: background-color .15s, color .15s;
+  }
+  .botao:hover:not(:disabled) { background: var(--areia); }
+  .botao.cheio { background: var(--ouro); color: #000; }
+  .botao.cheio:hover:not(:disabled) { background: var(--ouro-escuro); }
+  .botao.grande { width: 100%; min-height: 3.4rem; }
+  .botao.perigo { border-color: var(--erro); color: var(--erro); }
+  .botao.perigo.sim { background: var(--erro); color: #000; }
+  .botao:disabled { opacity: .5; cursor: not-allowed; }
+
+  input[type=text], input[type=tel], input[type=password], input[type=date], textarea {
+    width: 100%; min-height: 3rem; padding: .6rem .8rem; background: var(--papel); border: 1.5px solid var(--linha);
+    border-radius: 8px; color: var(--tinta);
+  }
+  textarea { min-height: 5.5rem; resize: vertical; }
+  input:focus, textarea:focus { border-color: var(--ouro); outline: none; box-shadow: 0 0 0 2px rgba(216,184,125,.35); }
+  input[type=date]::-webkit-calendar-picker-indicator { filter: invert(.8); }
+
+  /* Login */
+  .login { max-width: 24rem; margin: 3rem auto 0; display: grid; gap: .9rem; }
+  .login label { font-weight: 600; }
+
+  /* Abas */
+  .abas { display: flex; gap: 1.5rem; border-bottom: 1px solid var(--linha); margin: 1.2rem 0 1.6rem; }
+  .aba { background: none; border: 0; padding: .7rem .1rem; color: var(--tinta-suave); font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .aba[aria-selected="true"] { color: var(--tinta); border-bottom-color: var(--ouro); font-weight: 600; }
+
+  /* Formulário (cartões, como um formulário online) */
+  .secao { background: var(--cartao); border: 1px solid var(--linha); border-radius: 14px; padding: 1.3rem 1.2rem 1.1rem; margin-bottom: 1.1rem; }
+  .secao > h2 { border-bottom: 1px solid var(--linha); padding-bottom: .6rem; }
+  .campo { margin: 0 0 1.25rem; padding: .2rem; border-radius: 8px; }
+  .campo.invalido { outline: 2px solid var(--erro); outline-offset: 4px; }
+  .campo > .rotulo { display: block; font-weight: 500; margin-bottom: .5rem; }
+  .campo .req { color: var(--erro); }
+  .sub { font: 400 1.35rem/1.2 var(--serif); color: var(--ouro); margin: 1.2rem 0 .8rem; }
+  .sub:first-child { margin-top: 0; }
+  .detalhe { margin-top: .6rem; }
+  .grade2 { display: grid; gap: 0 1rem; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 560px) { .grade2 { grid-template-columns: 1fr; } }
+
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chip {
+    min-height: 2.8rem; padding: .35rem 1.05rem; border-radius: 999px; border: 1.5px solid var(--linha);
+    background: var(--papel); cursor: pointer; user-select: none; transition: background-color .12s, border-color .12s;
+  }
+  .chip:hover { border-color: var(--ouro); }
+  .chip[aria-pressed="true"] { background: var(--ouro); border-color: var(--ouro); color: #000; font-weight: 600; }
+
+  .declaracao { color: var(--tinta-suave); margin: 0 0 1rem; }
+  .aceite { display: flex; gap: .8rem; align-items: flex-start; cursor: pointer; }
+  .aceite input { width: 1.5rem; height: 1.5rem; margin-top: .1rem; accent-color: var(--ouro); flex: none; }
+
+  /* Assinaturas */
+  .assinaturas { display: grid; gap: 1.2rem; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 700px) { .assinaturas { grid-template-columns: 1fr; } }
+  .pad .quadro { position: relative; }
+  .pad canvas { display: block; width: 100%; aspect-ratio: 700 / 240; background: #F5F1EA; border-radius: 10px; border: 1.5px solid var(--linha); touch-action: none; cursor: crosshair; }
+  .pad .dica { position: absolute; inset: 0; display: grid; place-items: center; color: #8d8478; pointer-events: none; font-size: .95rem; text-align: center; padding: 0 1rem; }
+  .pad .linha { position: absolute; left: 8%; right: 8%; bottom: 22%; border-bottom: 1px solid #b7ab98; pointer-events: none; }
+  .pad .limpar { margin-top: .5rem; min-height: 2.4rem; }
+
+  .erro-geral { background: #2E1118; color: #F0B3BE; border-radius: 8px; padding: .8rem 1rem; margin: 0 0 1rem; }
+  .ok-geral { background: #14231A; color: var(--verde); border-radius: 8px; padding: .8rem 1rem; margin: 0 0 1rem; }
+
+  /* Lista e ficha salva */
+  .busca { margin-bottom: 1rem; }
+  .lista { display: grid; gap: .7rem; }
+  .item { text-align: left; width: 100%; background: var(--cartao); border: 1px solid var(--linha); border-radius: 12px; padding: .95rem 1.1rem; cursor: pointer; display: grid; gap: .25rem; }
+  .item:hover { border-color: var(--ouro); }
+  .item .nome { font: 400 1.4rem/1.2 var(--serif); }
+  .tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .2rem; }
+  .tag { font-size: .8rem; padding: .1rem .6rem; border-radius: 999px; background: var(--areia); color: var(--ouro); }
+  .acoes { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0 1.4rem; }
+  .resp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: .2rem 1.2rem; padding: .55rem 0; border-bottom: 1px solid var(--linha); }
+  .resp:last-child { border-bottom: 0; }
+  .resp .p { color: var(--tinta-suave); }
+  .resp .r { font-weight: 500; overflow-wrap: anywhere; white-space: pre-wrap; }
+  @media (max-width: 600px) { .resp { grid-template-columns: 1fr; } }
+  .assin-img { max-width: 100%; border-radius: 8px; border: 1px solid var(--linha); background: #F5F1EA; display: block; margin-top: .4rem; }
+  .sessoes { width: 100%; border-collapse: collapse; }
+  .sessoes th { text-align: left; font-weight: 500; color: var(--tinta-suave); font-size: .85rem; padding: 0 .4rem .3rem 0; }
+  .sessoes td { padding: .25rem .4rem .25rem 0; vertical-align: top; }
+  .sessoes input { min-height: 2.6rem; }
+  @media (max-width: 760px) {
+    .sessoes, .sessoes tbody, .sessoes tr, .sessoes td { display: block; width: 100%; }
+    .sessoes thead { display: none; }
+    .sessoes tr { border: 1px solid var(--linha); border-radius: 10px; padding: .6rem; margin-bottom: .7rem; }
+  }
+  .so-impressao { display: none; }
+
+  @media print {
+    :root { --papel: #fff; --cartao: #fff; --areia: #eee; --linha: #bbb; --tinta: #111; --tinta-suave: #555; --ouro: #7a5a12; --verde: #2E4A36; }
+    body { background: #fff; color: #111; }
+    .noprint, .topo, .abas, .acoes { display: none !important; }
+    .so-impressao { display: block; margin-bottom: 1rem; }
+    .pagina { padding: 0; max-width: none; }
+    .secao { break-inside: avoid; border-color: #bbb; }
+    .assin-img { border-color: #bbb; }
+    .sessoes input { border: 0; padding: 0; background: transparent; color: #111; min-height: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header class="topo noprint">
+    <a class="marca" href="/">Rhavila Maison</a>
+    <button id="sair" class="botao" type="button" hidden>Sair</button>
+  </header>
+
+  <!-- ===== Entrada com senha ===== -->
+  <section id="tela-login" hidden>
+    <h1>Ficha de anamnese</h1>
+    <form id="form-login" class="login" novalidate>
+      <p class="suave" style="margin:0">Área restrita. Digite a senha do painel.</p>
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" autocomplete="current-password" required>
+      <p id="erro-login" class="erro-geral" role="alert" hidden></p>
+      <button class="botao cheio grande" type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <!-- ===== Área da dona ===== -->
+  <main id="tela-app" hidden>
+    <h1 class="noprint">Ficha de anamnese</h1>
+    <p class="suave noprint" style="margin:0">Preencha tocando nas opções. As fichas ficam guardadas em sigilo, só com a sua senha.</p>
+
+    <div class="abas noprint" role="tablist">
+      <button class="aba" role="tab" id="aba-nova" aria-selected="true" type="button">Nova ficha</button>
+      <button class="aba" role="tab" id="aba-lista" aria-selected="false" type="button">Fichas salvas</button>
+    </div>
+
+    <!-- Nova ficha -->
+    <section id="v-form">
+      <form id="ficha" novalidate></form>
+      <p id="erro-ficha" class="erro-geral" role="alert" hidden></p>
+      <button id="salvar" class="botao cheio grande" type="button">Salvar ficha</button>
+    </section>
+
+    <!-- Ficha salva com sucesso -->
+    <section id="v-salva" hidden>
+      <div class="ok-geral"><strong>Ficha salva.</strong> Código <span id="cod-salvo"></span>.</div>
+      <div class="acoes">
+        <button id="ver-salva" class="botao cheio" type="button">Ver ficha</button>
+        <button id="outra" class="botao" type="button">Preencher outra ficha</button>
+      </div>
+    </section>
+
+    <!-- Lista -->
+    <section id="v-lista" hidden>
+      <div class="busca"><input id="busca" type="text" placeholder="Buscar pelo nome" autocomplete="off"></div>
+      <p id="lista-vazia" class="suave" hidden></p>
+      <div id="lista" class="lista"></div>
+    </section>
+
+    <!-- Ficha aberta -->
+    <section id="v-detalhe" hidden>
+      <div class="acoes noprint">
+        <button id="voltar" class="botao" type="button">← Voltar</button>
+        <button id="imprimir" class="botao" type="button">Imprimir / Salvar PDF</button>
+        <button id="excluir" class="botao perigo" type="button">Excluir ficha</button>
+      </div>
+      <p id="msg-detalhe" class="ok-geral noprint" role="status" hidden></p>
+      <div class="so-impressao">
+        <h2 style="margin:0">Ficha de Anamnese Facial</h2>
+        <div class="suave">Espaço Rhavila Maison · rhavilamaison.com.br</div>
+      </div>
+      <div id="detalhe"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // Endereço da API (a publicar.mjs preenche esta linha sozinha).
+  const API_URL = 'https://agenda-estetica.rhavilamaison.workers.dev';
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs = {}, ...filhos) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v === false || v == null) continue;
+      if (k === 'class') n.className = v;
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? '' : v);
+    }
+    for (const f of filhos.flat()) if (f != null && f !== false) n.append(f.nodeType ? f : document.createTextNode(f));
+    return n;
+  };
+
+  // ---------------------------------------------------------------
+  // As perguntas da ficha. Tudo que aparece na tela, no registro salvo
+  // e na impressão vem desta lista.
+  // ---------------------------------------------------------------
+  const yn = (k, n, l, d) => ({ k, t: 'yn', l: (n ? n + '. ' : '') + l, d });
+  const tem = (v, p) => (v.procedimentos || []).includes(p);
+  const PROCEDIMENTOS = ['Limpeza de pele', 'Hidratação facial', 'Protocolo de acne', 'Protocolo de envelhecimento', 'Micropigmentação', 'Outro'];
+
+  const SECOES = [
+    { id: 'pessoais', titulo: 'Dados pessoais', campos: [
+      { k: 'nome', t: 'texto', l: 'Nome completo', req: true, auto: 'off' },
+      { k: 'nascimento', t: 'data', l: 'Nascimento', meio: true },
+      { k: 'cpf', t: 'cpf', l: 'CPF', meio: true },
+      { k: 'telefone', t: 'tel', l: 'Telefone / WhatsApp' },
+      { k: 'endereco', t: 'texto', l: 'Endereço' },
+      { k: 'profissao', t: 'texto', l: 'Profissão' },
+    ]},
+    { id: 'saude', titulo: 'Saúde geral', campos: [
+      yn('s1', 1, 'Possui alguma doença? (diabetes, hipertensão, tireoide, autoimune, cardíaca, epilepsia)', 'Qual?'),
+      yn('s2', 2, 'Está grávida, amamentando ou tentando engravidar?', 'Observações'),
+      yn('s3', 3, 'Usa medicamento contínuo? (anticoagulante, AAS, corticoide, anticoncepcional, antidepressivo)', 'Qual?'),
+      yn('s4', 4, 'Usou isotretinoína (Roacutan) nos últimos 6 meses?', 'Quando parou?'),
+      yn('s5', 5, 'Tem alergia? (medicamentos, anestésicos, cosméticos, látex, metais)', 'Qual?'),
+      yn('s6', 6, 'Tem herpes labial recorrente?', 'Última crise'),
+      yn('s7', 7, 'Tem tendência a queloide ou cicatrização difícil?', 'Observações'),
+      yn('s8', 8, 'Faz ou já fez tratamento oncológico?', 'Quando?'),
+      yn('s9', 9, 'Possui marca-passo ou implante metálico?', 'Onde?'),
+      yn('s10', 10, 'Tem ferida, lesão ou infecção ativa no rosto?', 'Onde?'),
+    ].map((c) => ({ ...c, req: true }))},
+    { id: 'proc', titulo: 'Procedimento de interesse', campos: [
+      { k: 'procedimentos', t: 'multi', l: 'Escolha um ou mais', opcoes: PROCEDIMENTOS },
+      { k: 'proc_outro', t: 'texto', l: 'Qual outro procedimento?', se: (v) => tem(v, 'Outro') },
+    ]},
+    { id: 'pele', titulo: 'Avaliação da pele', campos: [
+      { k: 'tipo_pele', t: 'um', l: 'Tipo de pele', opcoes: ['Normal', 'Seca', 'Oleosa', 'Mista', 'Sensível'] },
+      { k: 'condicoes', t: 'multi', l: 'Condições presentes', opcoes: ['Acne', 'Cravos', 'Manchas', 'Melasma', 'Rosácea', 'Poros dilatados', 'Rugas / linhas', 'Flacidez', 'Olheiras'] },
+      yn('p11', 11, 'Usa ácidos, retinoides ou vitamina C em casa?', 'Quais?'),
+      yn('p12', 12, 'Fez procedimento estético nos últimos 6 meses? (peeling, laser, toxina, preenchimento, fios)', 'Qual e quando?'),
+      yn('p13', 13, 'Já teve reação a algum tratamento estético?', 'Qual?'),
+    ]},
+    { id: 'habitos', titulo: 'Hábitos', campos: [
+      { k: 'protetor', t: 'yn', l: 'Usa protetor solar todo dia?' },
+      { k: 'sol', t: 'um', l: 'Exposição ao sol', opcoes: ['Baixa', 'Média', 'Alta'] },
+      { k: 'fuma', t: 'yn', l: 'Fuma?' },
+      { k: 'alcool', t: 'um', l: 'Bebida alcoólica', opcoes: ['Não', 'Às vezes', 'Frequente'] },
+      { k: 'agua', t: 'um', l: 'Água por dia', opcoes: ['Menos de 1 litro', '1 litro', '1,5 litro', '2 litros', '2,5 litros', '3 litros ou mais'] },
+      { k: 'sono', t: 'um', l: 'Sono', opcoes: ['Bom', 'Regular', 'Ruim'] },
+      { k: 'rotina', t: 'area', l: 'Rotina de cuidados com a pele hoje' },
+    ]},
+    { id: 'expect', titulo: 'Expectativas', campos: [
+      { k: 'incomoda', t: 'area', l: 'O que mais te incomoda no rosto / pele?' },
+    ]},
+    { id: 'espec', titulo: 'Perguntas por procedimento', aviso: 'Aparecem só as do procedimento escolhido acima.', campos: [
+      { t: 'sub', l: 'Micropigmentação', se: (v) => tem(v, 'Micropigmentação') },
+      { k: 'm1', t: 'texto', l: 'Já fez micropigmentação? Onde e quando?', se: (v) => tem(v, 'Micropigmentação') },
+      yn('m2', 0, 'Tem pigmento antigo ou fez remoção a laser?', 'Detalhe'),
+      yn('m3', 0, 'Usa anticoagulante, ômega 3 ou ginkgo?', 'Qual?'),
+      yn('m4', 0, 'Tem evento nos próximos 30 dias?', 'Qual e quando?'),
+      { t: 'sub', l: 'Protocolo de acne', se: (v) => tem(v, 'Protocolo de acne') },
+      { k: 'a1', t: 'texto', l: 'Há quanto tempo tem acne?', se: (v) => tem(v, 'Protocolo de acne') },
+      yn('a2', 0, 'Faz acompanhamento com dermatologista?', 'Detalhe'),
+      yn('a3', 0, 'Usa medicação oral ou tópica para acne?', 'Qual?'),
+      { t: 'sub', l: 'Protocolo de envelhecimento', se: (v) => tem(v, 'Protocolo de envelhecimento') },
+      { k: 'e1', t: 'multi', l: 'Quais sinais mais incomodam?', opcoes: ['Rugas', 'Flacidez', 'Manchas', 'Textura'], se: (v) => tem(v, 'Protocolo de envelhecimento') },
+      yn('e2', 0, 'Já fez toxina botulínica ou preenchimento?', 'Quando?'),
+      yn('e3', 0, 'Usa algum ativo antienvelhecimento em casa?', 'Qual?'),
+      { t: 'sub', l: 'Limpeza de pele / Hidratação', se: (v) => tem(v, 'Limpeza de pele') || tem(v, 'Hidratação facial') },
+      yn('l1', 0, 'A pele fica vermelha ou sensível com facilidade?', 'Detalhe'),
+      { k: 'l2', t: 'um', l: 'Com que frequência costuma fazer limpeza de pele?', opcoes: ['Nunca fiz', 'Todo mês', 'A cada 2 ou 3 meses', 'Poucas vezes ao ano'], se: (v) => tem(v, 'Limpeza de pele') || tem(v, 'Hidratação facial') },
+      yn('l3', 0, 'Teve reação em alguma limpeza ou hidratação anterior?', 'Qual?'),
+    ].map((c) => {
+      if (c.se) return c;
+      const grupo = c.k[0];
+      const se = { m: (v) => tem(v, 'Micropigmentação'), a: (v) => tem(v, 'Protocolo de acne'), e: (v) => tem(v, 'Protocolo de envelhecimento'),
+                   l: (v) => tem(v, 'Limpeza de pele') || tem(v, 'Hidratação facial') }[grupo];
+      return { ...c, se };
+    })},
+    { id: 'imagem', titulo: 'Uso de imagem', campos: [
+      { k: 'imagem', t: 'um', l: 'Fotos de antes e depois do tratamento', req: true,
+        opcoes: ['Autorizo o uso para divulgação', 'Autorizo apenas para registro interno', 'Não autorizo'] },
+    ]},
+  ];
+
+  const DECLARACAO = 'Declaro que as informações desta ficha são verdadeiras e que fui orientado(a) sobre o procedimento, os cuidados antes e depois e as possíveis reações. Comprometo-me a informar qualquer mudança no meu estado de saúde ou nos medicamentos que uso antes de cada sessão.';
+  const LGPD = 'Seus dados são usados somente para o seu atendimento e ficam guardados com sigilo, conforme a LGPD.';
+
+  // ---------------------------------------------------------------
+  // Utilidades
+  // ---------------------------------------------------------------
+  const hojeISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const fmtData = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.split('-').reverse().join('/') : (iso || ''));
+  const fmtMomento = (iso) => {
+    try { return new Date(iso).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }); }
+    catch { return iso; }
+  };
+  const soDigitos = (s) => String(s).replace(/\D/g, '');
+  const mascaraCpf = (s) => {
+    const d = soDigitos(s).slice(0, 11);
+    return d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2');
+  };
+  const mascaraTel = (s) => {
+    const d = soDigitos(s).slice(0, 11);
+    if (d.length <= 2) return d ? `(${d}` : '';
+    if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+    if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  };
+
+  // ---------------------------------------------------------------
+  // Senha e chamadas à API (a mesma senha do painel)
+  // ---------------------------------------------------------------
+  const guardar = {
+    ler() { try { return sessionStorage.getItem('painel-senha') || ''; } catch { return ''; } },
+    gravar(v) { try { v ? sessionStorage.setItem('painel-senha', v) : sessionStorage.removeItem('painel-senha'); } catch { /* sem armazenamento */ } },
+  };
+  let senha = guardar.ler();
+
+  async function api(caminho, { metodo = 'GET', corpo } = {}) {
+    let r;
+    try {
+      r = await fetch(API_URL + caminho, {
+        method: metodo,
+        headers: { Authorization: 'Bearer ' + senha, ...(corpo ? { 'Content-Type': 'application/json' } : {}) },
+        body: corpo ? JSON.stringify(corpo) : undefined,
+      });
+    } catch {
+      throw Object.assign(new Error('Não foi possível falar com o sistema. Verifique a internet e tente de novo.'), { status: 0 });
+    }
+    const dados = await r.json().catch(() => ({}));
+    if (r.status === 401) { sair(); throw Object.assign(new Error('Senha incorreta.'), { status: 401 }); }
+    if (!r.ok) throw Object.assign(new Error(dados.erro || dados.mensagem || 'Algo deu errado. Tente de novo.'), { status: r.status });
+    return dados;
+  }
+
+  function mostrarTela(qual) {
+    $('tela-login').hidden = qual !== 'login';
+    $('tela-app').hidden = qual !== 'app';
+    $('sair').hidden = qual !== 'app';
+  }
+  function sair() { senha = ''; guardar.gravar(''); sujo = false; mostrarTela('login'); $('senha').value = ''; }
+  $('sair').addEventListener('click', () => {
+    if (sujo && !confirm('Há uma ficha preenchida e não salva. Sair mesmo assim?')) return;
+    sair();
+  });
+
+  $('form-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const erro = $('erro-login');
+    erro.hidden = true;
+    const digitada = $('senha').value;
+    if (!digitada) { erro.textContent = 'Digite a senha.'; erro.hidden = false; return; }
+    senha = digitada;
+    try {
+      await api('/api/admin/ping');
+      guardar.gravar(senha);
+      entrar();
+    } catch (err) {
+      senha = '';
+      erro.textContent = err.status === 404 ? 'O painel ainda não está ativado na API (falta a senha ADMIN_SENHA).' : err.message;
+      erro.hidden = false;
+    }
+  });
+
+  // ---------------------------------------------------------------
+  // Assinatura (arrastar o dedo ou o mouse)
+  // ---------------------------------------------------------------
+  function criarAssinatura(rotulo, dica) {
+    const canvas = el('canvas', { width: 700, height: 240, 'aria-label': rotulo });
+    const ctx = canvas.getContext('2d');
+    const pintarFundo = () => { ctx.fillStyle = '#F5F1EA'; ctx.fillRect(0, 0, canvas.width, canvas.height); };
+    pintarFundo();
+    ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#171412';
+    let desenhando = false, tracou = false, ultimo = null;
+    const ponto = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (canvas.width / r.width), y: (e.clientY - r.top) * (canvas.height / r.height) };
+    };
+    const dicaEl = el('div', { class: 'dica' }, dica);
+    canvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      desenhando = true; ultimo = ponto(e);
+      ctx.beginPath(); ctx.arc(ultimo.x, ultimo.y, 1.6, 0, Math.PI * 2); ctx.fillStyle = '#171412'; ctx.fill();
+      tracou = true; dicaEl.hidden = true; marcarSujo();
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (!desenhando) return;
+      const p = ponto(e);
+      ctx.beginPath(); ctx.moveTo(ultimo.x, ultimo.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ultimo = p;
+    });
+    const parar = () => { desenhando = false; };
+    canvas.addEventListener('pointerup', parar);
+    canvas.addEventListener('pointercancel', parar);
+    const limpar = () => { pintarFundo(); tracou = false; dicaEl.hidden = false; };
+    const wrap = el('div', { class: 'pad' },
+      el('div', { class: 'quadro' }, canvas, el('div', { class: 'linha' }), dicaEl),
+      el('button', { class: 'botao limpar', type: 'button', onclick: limpar }, 'Limpar'));
+    return { el: wrap, vazio: () => !tracou, png: () => canvas.toDataURL('image/png'), limpar };
+  }
+
+  // ---------------------------------------------------------------
+  // Formulário
+  // ---------------------------------------------------------------
+  let v = {};            // respostas
+  let sujo = false;      // há algo preenchido e não salvo
+  let assCliente, assProf;
+  const marcarSujo = () => { sujo = true; };
+  const condicionais = [];
+
+  function chip(texto, ativo, aoClicar) {
+    const b = el('button', { type: 'button', class: 'chip', 'aria-pressed': String(ativo) }, texto);
+    b.addEventListener('click', () => { aoClicar(b); marcarSujo(); atualizarCondicionais(); });
+    return b;
+  }
+
+  function campoEl(c) {
+    const rotulo = el('span', { class: 'rotulo' }, c.l, c.req ? el('span', { class: 'req' }, ' *') : null);
+    const caixa = el('div', { class: 'campo' + (c.meio ? ' meio' : ''), 'data-k': c.k });
+    caixa.append(rotulo);
+
+    if (['texto', 'tel', 'cpf', 'data'].includes(c.t)) {
+      const input = el('input', { type: c.t === 'data' ? 'date' : c.t === 'tel' ? 'tel' : 'text', autocomplete: 'off', inputmode: c.t === 'cpf' ? 'numeric' : null });
+      if (v[c.k]) input.value = v[c.k];
+      input.addEventListener('input', () => {
+        if (c.t === 'cpf') input.value = mascaraCpf(input.value);
+        if (c.t === 'tel') input.value = mascaraTel(input.value);
+        v[c.k] = input.value; marcarSujo(); atualizarCondicionais();
+      });
+      caixa.append(input);
+    } else if (c.t === 'area') {
+      const area = el('textarea', { autocomplete: 'off' });
+      area.addEventListener('input', () => { v[c.k] = area.value; marcarSujo(); });
+      caixa.append(area);
+    } else if (c.t === 'yn') {
+      const grupo = el('div', { class: 'chips', role: 'group' });
+      const detalhe = c.d ? el('input', { type: 'text', class: 'detalhe', placeholder: c.d, autocomplete: 'off', hidden: true }) : null;
+      const botoes = [['sim', 'Sim'], ['nao', 'Não']].map(([valor, texto]) =>
+        chip(texto, false, () => {
+          v[c.k] = valor;
+          botoes.forEach((b, i) => b.setAttribute('aria-pressed', String(['sim', 'nao'][i] === valor)));
+          if (detalhe) { detalhe.hidden = valor !== 'sim'; if (valor !== 'sim') { detalhe.value = ''; delete v[c.k + '_d']; } }
+        }));
+      grupo.append(...botoes);
+      caixa.append(grupo);
+      if (detalhe) {
+        detalhe.addEventListener('input', () => { v[c.k + '_d'] = detalhe.value; marcarSujo(); });
+        caixa.append(detalhe);
+      }
+    } else if (c.t === 'um') {
+      const grupo = el('div', { class: 'chips', role: 'radiogroup' });
+      const botoes = c.opcoes.map((o) => chip(o, false, () => {
+        const igual = v[c.k] === o;
+        v[c.k] = igual ? undefined : o;
+        botoes.forEach((b, i) => b.setAttribute('aria-pressed', String(!igual && c.opcoes[i] === o)));
+      }));
+      grupo.append(...botoes);
+      caixa.append(grupo);
+    } else if (c.t === 'multi') {
+      const grupo = el('div', { class: 'chips', role: 'group' });
+      grupo.append(...c.opcoes.map((o) => chip(o, false, (b) => {
+        const atual = new Set(v[c.k] || []);
+        atual.has(o) ? atual.delete(o) : atual.add(o);
+        v[c.k] = c.opcoes.filter((x) => atual.has(x));
+        b.setAttribute('aria-pressed', String(atual.has(o)));
+      })));
+      caixa.append(grupo);
+    }
+    return caixa;
+  }
+
+  function atualizarCondicionais() {
+    for (const { no, se } of condicionais) no.hidden = !se(v);
+    const semProc = !(v.procedimentos || []).length;
+    const aviso = document.querySelector('[data-aviso-espec]');
+    if (aviso) aviso.hidden = !semProc;
+  }
+
+  function montarFormulario() {
+    v = { data: hojeISO() };
+    sujo = false;
+    condicionais.length = 0;
+    const form = $('ficha');
+    form.replaceChildren();
+
+    // Data
+    const dataCampo = el('div', { class: 'secao' }, el('div', { class: 'campo', style: 'margin:0', 'data-k': 'data' },
+      el('span', { class: 'rotulo' }, 'Data'),
+      (() => { const i = el('input', { type: 'date', value: v.data }); i.addEventListener('input', () => { v.data = i.value; marcarSujo(); }); return i; })()));
+    form.append(dataCampo);
+
+    for (const s of SECOES) {
+      const secao = el('section', { class: 'secao' }, el('h2', {}, s.titulo));
+      if (s.aviso) secao.append(el('p', { class: 'suave pequeno', 'data-aviso-espec': '' }, s.aviso));
+      let linha = null;
+      for (const c of s.campos) {
+        let no;
+        if (c.t === 'sub') no = el('h3', { class: 'sub' }, c.l);
+        else no = campoEl(c);
+        if (c.se) condicionais.push({ no, se: c.se });
+        if (c.meio) {
+          if (!linha) { linha = el('div', { class: 'grade2' }); secao.append(linha); }
+          linha.append(no);
+          if (linha.children.length === 2) linha = null;
+        } else { linha = null; secao.append(no); }
+      }
+      form.append(secao);
+    }
+
+    // Declaração e assinaturas
+    assCliente = criarAssinatura('Assinatura da cliente', 'Assine aqui com o dedo ou o mouse');
+    assProf = criarAssinatura('Assinatura da profissional', 'Assinatura da profissional');
+    const aceite = el('input', { type: 'checkbox', id: 'aceite' });
+    aceite.addEventListener('change', () => { v.aceite = aceite.checked; marcarSujo(); });
+    const local = el('input', { type: 'text', placeholder: 'Local (cidade)', autocomplete: 'off' });
+    local.addEventListener('input', () => { v.local = local.value; marcarSujo(); });
+    form.append(el('section', { class: 'secao' },
+      el('h2', {}, 'Declaração e assinatura'),
+      el('p', { class: 'declaracao' }, DECLARACAO),
+      el('p', { class: 'declaracao pequeno' }, LGPD),
+      el('div', { class: 'campo', 'data-k': 'aceite' },
+        el('label', { class: 'aceite' }, aceite, el('span', {}, 'Li e concordo com a declaração acima.', el('span', { class: 'req' }, ' *')))),
+      el('div', { class: 'campo' }, el('span', { class: 'rotulo' }, 'Local'), local),
+      el('div', { class: 'assinaturas' },
+        el('div', { class: 'campo', 'data-k': 'assinatura' }, el('span', { class: 'rotulo' }, 'Assinatura do(a) cliente', el('span', { class: 'req' }, ' *')), assCliente.el),
+        el('div', { class: 'campo' }, el('span', { class: 'rotulo' }, 'Assinatura do(a) profissional'), assProf.el))));
+    atualizarCondicionais();
+  }
+
+  function mostrarErroFicha(msg, seletor) {
+    const e = $('erro-ficha');
+    e.textContent = msg; e.hidden = false;
+    document.querySelectorAll('.campo.invalido').forEach((n) => n.classList.remove('invalido'));
+    const alvo = seletor && document.querySelector(seletor);
+    if (alvo) { alvo.classList.add('invalido'); alvo.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    else e.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function validar() {
+    if (String(v.nome || '').trim().length < 2) return ['Informe o nome completo.', '[data-k="nome"]'];
+    if (v.cpf && soDigitos(v.cpf).length !== 11) return ['O CPF precisa ter 11 números.', '[data-k="cpf"]'];
+    for (const c of SECOES.find((s) => s.id === 'saude').campos) {
+      if (!v[c.k]) return [`Responda a pergunta ${c.l.split('.')[0]} da saúde geral.`, `[data-k="${c.k}"]`];
+    }
+    if (!v.imagem) return ['Escolha uma opção sobre o uso de imagem.', '[data-k="imagem"]'];
+    if (!v.aceite) return ['Marque que leu e concorda com a declaração.', '[data-k="aceite"]'];
+    if (assCliente.vazio()) return ['Falta a assinatura da cliente.', '[data-k="assinatura"]'];
+    return null;
+  }
+
+  // Só guarda as respostas que valem (perguntas de procedimentos não escolhidos ficam de fora).
+  function respostasFinais() {
+    const saida = {};
+    const validos = new Set();
+    for (const s of SECOES) for (const c of s.campos) if (c.k && (!c.se || c.se(v))) { validos.add(c.k); validos.add(c.k + '_d'); }
+    for (const [k, val] of Object.entries(v)) {
+      if (['data', 'aceite', 'local'].includes(k) || validos.has(k)) {
+        if (val !== undefined && val !== '' && !(Array.isArray(val) && !val.length)) saida[k] = typeof val === 'string' ? val.trim() : val;
+      }
+    }
+    saida.procedimentos = v.procedimentos || [];
+    saida.nome = String(v.nome).trim();
+    return saida;
+  }
+
+  let ultimoCodigo = '';
+  $('salvar').addEventListener('click', async () => {
+    $('erro-ficha').hidden = true;
+    const problema = validar();
+    if (problema) { mostrarErroFicha(problema[0], problema[1]); return; }
+    const botao = $('salvar');
+    botao.disabled = true; botao.textContent = 'Salvando…';
+    try {
+      const r = await api('/api/admin/fichas', { metodo: 'POST', corpo: {
+        dados: respostasFinais(),
+        assinatura_cliente: assCliente.png(),
+        assinatura_profissional: assProf.vazio() ? '' : assProf.png(),
+      }});
+      ultimoCodigo = r.codigo;
+      sujo = false;
+      $('cod-salvo').textContent = r.codigo;
+      $('v-form').hidden = true; $('v-salva').hidden = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      if (e.status !== 401) mostrarErroFicha(e.message);
+    } finally {
+      botao.disabled = false; botao.textContent = 'Salvar ficha';
+    }
+  });
+  $('outra').addEventListener('click', () => { montarFormulario(); $('v-salva').hidden = true; $('v-form').hidden = false; window.scrollTo(0, 0); });
+  $('ver-salva').addEventListener('click', () => abrirFicha(ultimoCodigo));
+
+  // ---------------------------------------------------------------
+  // Abas, lista e ficha aberta
+  // ---------------------------------------------------------------
+  function mostrarAba(qual) {
+    const nova = qual === 'nova';
+    $('aba-nova').setAttribute('aria-selected', String(nova));
+    $('aba-lista').setAttribute('aria-selected', String(!nova));
+    $('v-detalhe').hidden = true;
+    $('v-lista').hidden = nova;
+    if (nova) { $('v-salva').hidden = true; $('v-form').hidden = false; }
+    else { $('v-form').hidden = true; $('v-salva').hidden = true; carregarLista(); }
+  }
+  $('aba-nova').addEventListener('click', () => mostrarAba('nova'));
+  $('aba-lista').addEventListener('click', () => mostrarAba('lista'));
+
+  let tempoBusca;
+  $('busca').addEventListener('input', () => { clearTimeout(tempoBusca); tempoBusca = setTimeout(carregarLista, 250); });
+
+  async function carregarLista() {
+    const vazio = $('lista-vazia');
+    try {
+      const q = $('busca').value.trim();
+      const itens = await api('/api/admin/fichas' + (q ? '?q=' + encodeURIComponent(q) : ''));
+      $('lista').replaceChildren(...itens.map((f) => el('button', { class: 'item', type: 'button', onclick: () => abrirFicha(f.codigo) },
+        el('span', { class: 'nome' }, f.nome),
+        el('span', { class: 'suave pequeno' }, 'Preenchida em ' + fmtMomento(f.criado_em)),
+        f.procedimentos.length ? el('span', { class: 'tags' }, f.procedimentos.map((p) => el('span', { class: 'tag' }, p))) : null)));
+      vazio.hidden = itens.length > 0;
+      vazio.textContent = q ? 'Nenhuma ficha com esse nome.' : 'Ainda não há fichas salvas.';
+    } catch (e) {
+      if (e.status !== 401) { vazio.hidden = false; vazio.textContent = e.message; }
+    }
+  }
+
+  function valorLeitura(c, d) {
+    const val = d[c.k];
+    if (c.t === 'yn') {
+      if (val === 'sim') return 'Sim' + (d[c.k + '_d'] ? ' — ' + d[c.k + '_d'] : '');
+      return val === 'nao' ? 'Não' : '—';
+    }
+    if (c.t === 'multi') return (val || []).length ? val.join(', ') : '—';
+    if (c.t === 'data') return val ? fmtData(val) : '—';
+    return val || '—';
+  }
+
+  let fichaAberta = null;
+  let sessoes = [];
+
+  async function abrirFicha(codigo) {
+    try {
+      const f = await api('/api/admin/fichas/' + encodeURIComponent(codigo));
+      fichaAberta = f; sessoes = f.sessoes.map((s) => ({ ...s }));
+      $('v-form').hidden = true; $('v-salva').hidden = true; $('v-lista').hidden = true; $('v-detalhe').hidden = false;
+      $('msg-detalhe').hidden = true;
+      $('aba-nova').setAttribute('aria-selected', 'false'); $('aba-lista').setAttribute('aria-selected', 'true');
+      desarmarExcluir();
+      renderDetalhe();
+      window.scrollTo({ top: 0 });
+    } catch (e) { if (e.status !== 401) alert(e.message); }
+  }
+
+  function renderDetalhe() {
+    const f = fichaAberta, d = f.dados;
+    const caixa = $('detalhe');
+    caixa.replaceChildren(
+      el('h2', { style: 'font-size:2.2rem;margin-bottom:.2rem' }, f.nome),
+      el('p', { class: 'suave', style: 'margin:0 0 1.2rem' }, `Ficha de ${fmtData(d.data)} · salva em ${fmtMomento(f.criado_em)} · código ${f.codigo}`),
+    );
+    const todas = [{ titulo: 'Dados pessoais', campos: SECOES[0].campos.filter((c) => c.k !== 'nome') }, ...SECOES.slice(1)];
+    for (const s of todas) {
+      const linhas = s.campos.filter((c) => c.k && (!c.se || c.se(d)));
+      if (!linhas.length) continue;
+      caixa.append(el('section', { class: 'secao' }, el('h2', {}, s.titulo),
+        linhas.map((c) => el('div', { class: 'resp' }, el('div', { class: 'p' }, c.l), el('div', { class: 'r' }, valorLeitura(c, d))))));
+    }
+    caixa.append(el('section', { class: 'secao' }, el('h2', {}, 'Declaração e assinaturas'),
+      el('p', { class: 'declaracao' }, DECLARACAO),
+      el('p', { class: 'suave pequeno' }, `Concordou com a declaração${d.local ? ' · ' + d.local : ''}${d.data ? ' · ' + fmtData(d.data) : ''}`),
+      el('div', { class: 'assinaturas' },
+        el('div', {}, el('span', { class: 'suave' }, 'Assinatura do(a) cliente'), el('img', { class: 'assin-img', src: f.assinatura_cliente, alt: 'Assinatura da cliente' })),
+        f.assinatura_profissional ? el('div', {}, el('span', { class: 'suave' }, 'Assinatura do(a) profissional'), el('img', { class: 'assin-img', src: f.assinatura_profissional, alt: 'Assinatura da profissional' })) : null)));
+    caixa.append(blocoSessoes());
+  }
+
+  function blocoSessoes() {
+    const corpo = el('tbody');
+    const linha = (s, i) => {
+      const campo = (k, tipo, ph) => {
+        const inp = el('input', { type: tipo, value: s[k] || '', placeholder: ph, autocomplete: 'off', 'aria-label': ph });
+        inp.addEventListener('input', () => { s[k] = inp.value; });
+        return el('td', {}, inp);
+      };
+      return el('tr', {}, campo('data', 'date', 'Data'), campo('procedimento', 'text', 'Procedimento'), campo('produtos', 'text', 'Produtos / parâmetros'),
+        campo('observacoes', 'text', 'Observações / reações'),
+        el('td', { class: 'noprint' }, el('button', { class: 'botao', type: 'button', 'aria-label': 'Remover sessão', onclick: () => { sessoes.splice(i, 1); redesenhar(); } }, '×')));
+    };
+    const redesenhar = () => corpo.replaceChildren(...sessoes.map(linha));
+    redesenhar();
+    const msg = el('p', { class: 'suave pequeno noprint', style: 'margin:.5rem 0 0' });
+    return el('section', { class: 'secao' },
+      el('h2', {}, 'Registro de sessões'),
+      el('p', { class: 'suave pequeno' }, 'A cada retorno, confirme com a cliente se houve mudança de saúde, medicamentos, gravidez ou procedimentos feitos fora da clínica.'),
+      el('table', { class: 'sessoes' },
+        el('thead', {}, el('tr', {}, ['Data', 'Procedimento', 'Produtos / parâmetros', 'Observações / reações', ''].map((t) => el('th', {}, t)))), corpo),
+      el('div', { class: 'acoes noprint', style: 'margin-bottom:0' },
+        el('button', { class: 'botao', type: 'button', onclick: () => { sessoes.push({ data: hojeISO(), procedimento: '', produtos: '', observacoes: '' }); redesenhar(); } }, '+ Adicionar sessão'),
+        el('button', { class: 'botao cheio', type: 'button', onclick: async (e) => {
+          e.target.disabled = true;
+          try { await api(`/api/admin/fichas/${fichaAberta.codigo}/sessoes`, { metodo: 'PUT', corpo: { sessoes } }); msg.textContent = 'Sessões salvas.'; }
+          catch (err) { if (err.status !== 401) msg.textContent = err.message; }
+          finally { e.target.disabled = false; }
+        } }, 'Salvar sessões')),
+      msg);
+  }
+
+  $('voltar').addEventListener('click', () => mostrarAba('lista'));
+  $('imprimir').addEventListener('click', () => window.print());
+
+  let excluirArmado = false, tempoExcluir;
+  function desarmarExcluir() { excluirArmado = false; clearTimeout(tempoExcluir); const b = $('excluir'); b.classList.remove('sim'); b.textContent = 'Excluir ficha'; }
+  $('excluir').addEventListener('click', async () => {
+    if (!excluirArmado) {
+      excluirArmado = true; $('excluir').classList.add('sim'); $('excluir').textContent = 'Toque de novo para excluir de vez';
+      tempoExcluir = setTimeout(desarmarExcluir, 4000); return;
+    }
+    try { await api('/api/admin/fichas/' + fichaAberta.codigo, { metodo: 'DELETE' }); desarmarExcluir(); mostrarAba('lista'); }
+    catch (e) { if (e.status !== 401) alert(e.message); }
+  });
+
+  window.addEventListener('beforeunload', (e) => { if (sujo) { e.preventDefault(); e.returnValue = ''; } });
+
+  function entrar() {
+    mostrarTela('app');
+    montarFormulario();
+    mostrarAba('nova');
+  }
+
+  // Início: se a senha já foi digitada nesta aba (no painel, por exemplo), confere e entra direto.
+  (async () => {
+    if (!senha) { mostrarTela('login'); return; }
+    try { await api('/api/admin/ping'); entrar(); } catch { mostrarTela('login'); }
+  })();
+})();
+</script>
+</body>
+</html>
