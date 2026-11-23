@@ -218,6 +218,13 @@
             <input id="s-preco" type="text" inputmode="decimal" placeholder="150,00" required>
           </div>
         </div>
+        <div class="campo">
+          <label for="s-passo">Horários oferecidos</label>
+          <select id="s-passo">
+            <option value="30">De meia em meia hora (09:00, 09:30, 10:00…)</option>
+            <option value="60">De hora em hora (09:00, 10:00, 11:00…)</option>
+          </select>
+        </div>
         <p id="erro-servico" class="aviso erro" role="alert" hidden></p>
         <div style="display:flex; gap:.5rem; flex-wrap:wrap">
           <button class="botao" type="submit" id="salvar-servico">Adicionar serviço</button>
@@ -565,7 +572,7 @@
         });
         return el('div', { class: 'servico-card' + (s.ativo ? '' : ' inativo') },
           el('div', { class: 'servico-topo' },
-            el('div', {}, el('h3', {}, s.nome), el('div', { class: 'suave pequeno' }, `${duracao(s.duracao_min)} · ${brl(s.preco_centavos)}${s.ativo ? '' : ' · desativado (não aparece para os clientes)'}`)),
+            el('div', {}, el('h3', {}, s.nome), el('div', { class: 'suave pequeno' }, `${duracao(s.duracao_min)} · ${brl(s.preco_centavos)} · horários ${s.passo_min === 60 ? 'de hora em hora' : (s.passo_min === 30 ? 'de meia em meia hora' : 'a cada ' + s.passo_min + ' min')}${s.ativo ? '' : ' · desativado (não aparece para os clientes)'}`)),
             el('div', { style: 'display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end' }, editar, alternar)),
           s.descricao ? el('p', { class: 'suave pequeno', style: 'margin:.5rem 0 0' }, s.descricao) : null);
       }));
@@ -581,6 +588,7 @@
     $('s-descricao').value = s.descricao ?? '';
     $('s-duracao').value = s.duracao_min;
     $('s-preco').value = (s.preco_centavos / 100).toFixed(2).replace('.', ',');
+    $('s-passo').value = String(s.passo_min || 30);
     $('salvar-servico').textContent = 'Salvar alterações';
     $('cancelar-edicao').hidden = false;
     $('form-servico').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -608,6 +616,7 @@
       descricao: $('s-descricao').value,
       duracao_min: Number($('s-duracao').value),
       preco_centavos: preco,
+      passo_min: Number($('s-passo').value),
       ativo: atual ? atual.ativo : 1,
     };
     try {
