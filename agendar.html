@@ -43,6 +43,13 @@
 
   /* Serviços */
   .servicos { display: grid; gap: .75rem; }
+  .servico-item { display: block; margin-bottom: .1rem; }
+  .qtd { display: flex; align-items: center; gap: .6rem; padding: .5rem .9rem; margin-top: .4rem; border: 1px solid var(--linha); border-radius: 12px; background: var(--areia); font-size: .92rem; }
+  .qtd[hidden] { display: none; }
+  .qtd > span:first-child { flex: 1; color: var(--tinta-suave); }
+  .qtd-btn { width: 2.4rem; height: 2.4rem; border: 1px solid var(--preto); background: transparent; color: var(--preto); font-size: 1.3rem; line-height: 1; cursor: pointer; border-radius: 8px; }
+  .qtd-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .qtd-num { min-width: 1.6rem; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
   .servico { position: relative; display: block; cursor: pointer; }
   .servico input { position: absolute; opacity: 0; inset: 0; }
   .servico .cartao {
@@ -85,7 +92,9 @@
     font: 500 1rem var(--sans); color: inherit; cursor: pointer; font-variant-numeric: tabular-nums;
     transition: background-color .15s, border-color .15s, color .15s;
   }
-  .hora:hover { border-color: var(--preto); }
+  .hora:hover:not(:disabled) { border-color: var(--preto); }
+  .hora.indisponivel, .hora:disabled { background: transparent; color: var(--tinta-suave); opacity: .4; border-style: dashed; text-decoration: line-through; cursor: not-allowed; }
+  .legenda-horas { margin: .6rem 0 0; font-size: .88rem; color: var(--tinta-suave); }
   .hora[aria-pressed="true"] { background: var(--preto); border-color: var(--preto); color: var(--papel); }
   .aviso { color: var(--tinta-suave); margin: 0; }
 
@@ -153,7 +162,8 @@
   <form id="form" novalidate>
     <section id="s-servico" aria-labelledby="t-servico">
       <h2 id="t-servico">Serviço</h2>
-      <div id="servicos" class="servicos" role="radiogroup" aria-labelledby="t-servico">
+      <p id="dica-combo" class="privacidade" hidden></p>
+      <div id="servicos" class="servicos" role="group" aria-labelledby="t-servico">
         <p class="aviso">Carregando serviços…</p>
       </div>
     </section>
@@ -257,7 +267,7 @@
   // ==========================
 
   const $ = (id) => document.getElementById(id);
-  const estado = { cupom: null, pagarTudo: false, config: null, servico: null, data: null, hora: null, busca: 0 };
+  const estado = { itens: [], cupom: null, pagarTudo: false, config: null, servico: null, data: null, hora: null, busca: 0 };
   const reduzMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const brl = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -322,17 +332,104 @@
       return;
     }
     caixa.replaceChildren(...lista.map((s) => {
-      const radio = el('input', { type: 'radio', name: 'servico', value: String(s.id) });
-      radio.addEventListener('change', () => escolherServico(s));
-      return el('label', { class: 'servico' },
-        radio,
-        el('span', { class: 'cartao' },
-          el('span', { class: 'nome' }, s.nome),
-          el('span', { class: 'preco' }, s.promocao ? el('span', { class: 'riscado' }, brl(s.preco_normal_centavos)) : null, brl(s.preco_centavos)),
-          s.promocao ? el('span', { class: 'selo-promo' }, textoPromocao(s.promocao)) : null,
-          el('span', { class: 'detalhe' }, [s.descricao, duracao(s.duracao_min)].filter(Boolean).join(' · '))
-        ));
+      const caixaSel = el('input', { type: 'checkbox', name: 'servico', value: String(s.id) });
+      caixaSel.addEventListener('change', () => (caixaSel.checked ? adicionar(s) : removerTodos(s)));
+      const num = el('span', { class: 'qtd-num', 'aria-live': 'polite' }, '1');
+      const menos = el('button', { class: 'qtd-btn', type: 'button', 'aria-label': `Tirar um ${s.nome}` }, '−');
+      const mais = el('button', { class: 'qtd-btn', type: 'button', 'aria-label': `Adicionar mais um ${s.nome}` }, '+');
+      menos.addEventListener('click', () => removerUm(s));
+      mais.addEventListener('click', () => adicionar(s));
+      const barra = el('div', { class: 'qtd', hidden: '' }, el('span', {}, 'Quantidade'), menos, num, mais);
+      refs.set(s.id, { caixaSel, num, barra, mais });
+      return el('div', { class: 'servico-item' },
+        el('label', { class: 'servico' },
+          caixaSel,
+          el('span', { class: 'cartao' },
+            el('span', { class: 'nome' }, s.nome),
+            el('span', { class: 'preco' }, s.promocao ? el('span', { class: 'riscado' }, brl(s.preco_normal_centavos)) : null, brl(s.preco_centavos)),
+            s.promocao ? el('span', { class: 'selo-promo' }, textoPromocao(s.promocao)) : null,
+            el('span', { class: 'detalhe' }, [s.descricao, duracao(s.duracao_min)].filter(Boolean).join(' · '))
+          )),
+        barra);
     }));
+  }
+
+  // Dá para escolher até 4 procedimentos, inclusive repetir o mesmo (ex.: 2 limpezas).
+  // Eles ficam no mesmo horário marcado, um depois do outro, com um só pagamento.
+  const MAX_ITENS = 4;
+  const refs = new Map();
+  const quantos = (id) => estado.itens.filter((x) => x.id === id).length;
+
+  function adicionar(s) {
+    if (estado.itens.length >= MAX_ITENS) { atualizarSelecao(); return; }
+    // O novo fica junto dos iguais a ele (A, A, B), ou no fim se for o primeiro desse serviço.
+    const ultimo = estado.itens.map((x) => x.id).lastIndexOf(s.id);
+    estado.itens.splice(ultimo < 0 ? estado.itens.length : ultimo + 1, 0, s);
+    aplicarSelecao();
+  }
+  function removerUm(s) {
+    const i = estado.itens.map((x) => x.id).lastIndexOf(s.id);
+    if (i >= 0) estado.itens.splice(i, 1);
+    aplicarSelecao();
+  }
+  function removerTodos(s) {
+    estado.itens = estado.itens.filter((x) => x.id !== s.id);
+    aplicarSelecao();
+  }
+
+  function atualizarSelecao() {
+    const total = estado.itens.length;
+    for (const [id, r] of refs) {
+      const n = quantos(id);
+      r.caixaSel.checked = n > 0;
+      r.caixaSel.disabled = n === 0 && total >= MAX_ITENS;
+      r.barra.hidden = n === 0;
+      r.num.textContent = String(n);
+      r.mais.disabled = total >= MAX_ITENS;
+    }
+    const dica = $('dica-combo');
+    dica.hidden = total === 0;
+    dica.textContent = total === 1
+      ? 'Quer fazer mais de um procedimento? Toque em outro serviço, ou use o + para repetir este. Dá para escolher até 4: ficam no mesmo horário, um depois do outro, com um só pagamento.'
+      : (total >= MAX_ITENS ? 'Você escolheu 4 procedimentos, o máximo. Eles ficam juntos, com um só pagamento.' : (total > 1 ? `Você escolheu ${total} procedimentos juntos. Pode adicionar até ${MAX_ITENS}. Um só pagamento.` : ''));
+  }
+
+  function aplicarSelecao() {
+    atualizarSelecao();
+    if (!estado.itens.length) {
+      estado.servico = null; estado.hora = null;
+      $('s-dia').hidden = true; $('s-hora').hidden = true; $('s-dados').hidden = true;
+      return;
+    }
+    escolherServico(combinar(estado.itens));
+  }
+
+  // Junta os procedimentos escolhidos em um só: soma duração e preço.
+  // Só uma promoção por agendamento: a do primeiro procedimento que tiver promoção. Repetindo o mesmo
+  // procedimento promocional, o preço promocional vale em todas as unidades (cada uma usa uma vaga;
+  // se faltarem vagas, as demais saem pelo preço normal). O servidor aplica a mesma regra.
+  function combinar(itens) {
+    const ids = itens.map((s) => s.id);
+    if (itens.length === 1) return { ...itens[0], ids };
+    const promoItem = itens.find((s) => s.promocao);
+    const promo = promoItem ? promoItem.promocao : null;
+    let restam = promoItem ? Math.min(itens.filter((s) => s.id === promoItem.id).length, promo.vagas_restantes) : 0;
+    let preco = 0;
+    for (const s of itens) {
+      if (promoItem && s.id === promoItem.id && restam > 0) { restam--; preco += s.preco_centavos; }
+      else preco += s.preco_normal_centavos ?? s.preco_centavos;
+    }
+    const qtd = new Map();
+    for (const s of itens) qtd.set(s.id, { s, n: (qtd.get(s.id)?.n ?? 0) + 1 });
+    return {
+      id: itens[0].id,
+      ids,
+      nome: [...qtd.values()].map(({ s, n }) => (n > 1 ? `${n}× ` : '') + s.nome).join(' + '),
+      duracao_min: itens.reduce((t, s) => t + s.duracao_min, 0),
+      preco_centavos: preco,
+      preco_normal_centavos: itens.reduce((t, s) => t + (s.preco_normal_centavos ?? s.preco_centavos), 0),
+      promocao: promo,
+    };
   }
 
   function escolherServico(servico) {
@@ -385,6 +482,7 @@
   // ----- Horários -----
   async function carregarHorarios() {
     const busca = ++estado.busca;
+    document.querySelectorAll('#legenda-horas').forEach((x) => x.remove());
     const secao = $('s-hora');
     const msg = $('msg-horas');
     const grade = $('horas');
@@ -393,18 +491,27 @@
     msg.hidden = false;
     msg.textContent = 'Buscando horários…';
     try {
-      const r = await api(`/api/horarios?servico=${estado.servico.id}&data=${estado.data}`);
+      const r = await api(`/api/horarios?servicos=${estado.servico.ids.join(',')}&data=${estado.data}`);
       if (busca !== estado.busca) return; // o cliente já escolheu outro dia ou serviço
       if (!r.horarios.length) {
         msg.textContent = 'Sem horários livres neste dia. Escolha outro dia.';
-        return;
+        if (!(r.ocupados || []).length) return;
+      } else {
+        msg.hidden = true;
       }
-      msg.hidden = true;
-      grade.replaceChildren(...r.horarios.map((h) => {
+      // Livres e já marcados juntos, em ordem; os marcados aparecem apagados e não podem ser escolhidos.
+      const todos = [...r.horarios.map((h) => [h, true]), ...(r.ocupados || []).map((h) => [h, false])].sort((a, b) => a[0].localeCompare(b[0]));
+      grade.replaceChildren(...todos.map(([h, livre]) => {
+        if (!livre) {
+          return el('button', { class: 'hora indisponivel', type: 'button', disabled: '', 'aria-label': `${h}, indisponível` }, h);
+        }
         const b = el('button', { class: 'hora', type: 'button', 'aria-pressed': 'false' }, h);
         b.addEventListener('click', () => escolherHora(h));
         return b;
       }));
+      if (r.ocupados && r.ocupados.length) {
+        grade.after(el('p', { class: 'legenda-horas', id: 'legenda-horas' }, 'Horários riscados já estão marcados.'));
+      }
       rolarPara(secao);
     } catch (e) {
       if (busca !== estado.busca) return;
@@ -550,6 +657,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           servico_id: estado.servico.id,
+          servico_ids: estado.servico.ids,
           data: estado.data,
           hora: estado.hora,
           nome: $('nome').value,
