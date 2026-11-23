@@ -104,6 +104,11 @@
     border: 1.5px solid var(--linha); border-radius: 8px; font: inherit;
   }
   input[aria-invalid="true"] { border-color: var(--erro); }
+  .cupom-linha { display: flex; gap: .5rem; }
+  .cupom-linha input { flex: 1; min-width: 0; text-transform: uppercase; }
+  .cupom-linha .botao { width: auto; padding-left: 1.2rem; padding-right: 1.2rem; }
+  .aviso-cupom { margin: .35rem 0 0; font-size: .92rem; color: var(--salvia); }
+  .aviso-cupom.erro-cupom { color: var(--erro); }
   .erro { color: var(--erro); font-size: .92rem; margin: .35rem 0 0; }
   .erro-geral { color: var(--erro); margin: 0 0 1rem; font-weight: 500; }
   .opcoes-pgto { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: .5rem; }
@@ -196,6 +201,15 @@
         <input id="site" name="site" type="text" tabindex="-1" autocomplete="off">
       </div>
 
+      <div class="campo cupom">
+        <label for="cupom">Cupom de desconto <span class="opcional">(opcional)</span></label>
+        <div class="cupom-linha">
+          <input id="cupom" name="cupom" type="text" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="msg-cupom">
+          <button id="aplicar-cupom" class="botao secundario" type="button">Aplicar</button>
+        </div>
+        <p id="msg-cupom" class="aviso-cupom" role="status" hidden></p>
+      </div>
+
       <fieldset id="escolha-pagamento" class="opcoes-pgto" hidden>
         <legend>Como prefere pagar?</legend>
         <label><input type="radio" name="forma" value="sinal" checked><span id="op-sinal"></span></label>
@@ -243,7 +257,7 @@
   // ==========================
 
   const $ = (id) => document.getElementById(id);
-  const estado = { pagarTudo: false, config: null, servico: null, data: null, hora: null, busca: 0 };
+  const estado = { cupom: null, pagarTudo: false, config: null, servico: null, data: null, hora: null, busca: 0 };
   const reduzMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const brl = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -406,34 +420,79 @@
     rolarPara($('s-dados'));
   }
 
+  // Preço do serviço já com o cupom aplicado (o servidor confere de novo ao agendar).
+  const descontoCupom = () => (estado.cupom ? Math.round(estado.servico.preco_centavos * estado.cupom.percentual / 100) : 0);
+  const precoFinal = () => estado.servico.preco_centavos - descontoCupom();
   const valorAPagar = () => (estado.pagarTudo
-    ? estado.servico.preco_centavos
-    : Math.round(estado.servico.preco_centavos * estado.config.percentual / 100));
-  const rotuloEnviar = () => (estado.config.pagamento ? 'Ir para o pagamento' : 'Confirmar agendamento');
+    ? precoFinal()
+    : Math.round(precoFinal() * estado.config.percentual / 100));
+  const rotuloEnviar = () => (estado.config.pagamento && estado.servico && precoFinal() > 0 ? 'Ir para o pagamento' : 'Confirmar agendamento');
 
   function atualizarResumo() {
     const { servico, data, hora } = estado;
     if (!servico || !data || !hora) return;
     $('r-servico').textContent = servico.nome + (servico.promocao ? ' · ' + servico.promocao.rotulo : '');
     $('r-quando').textContent = `${dataLonga(data)}, às ${hora} (${duracao(servico.duracao_min)})`;
-    const sinal = Math.round(servico.preco_centavos * estado.config.percentual / 100);
-    const podeEscolher = estado.config.pagamento && sinal < servico.preco_centavos;
+    const total = precoFinal();
+    const sinal = Math.round(total * estado.config.percentual / 100);
+    const podeEscolher = estado.config.pagamento && total > 0 && sinal < total;
     if (!podeEscolher) estado.pagarTudo = false;
     $('escolha-pagamento').hidden = !podeEscolher;
     $('op-sinal').textContent = `Pagar só o sinal de ${brl(sinal)} agora e o restante na clínica`;
-    $('op-tudo').textContent = `Pagar tudo agora (${brl(servico.preco_centavos)})`;
+    $('op-tudo').textContent = `Pagar tudo agora (${brl(total)})`;
     const pagar = valorAPagar();
-    $('r-valor').textContent = pagar < servico.preco_centavos
-      ? `Sinal de ${brl(pagar)} agora (total ${brl(servico.preco_centavos)})`
-      : (estado.config.pagamento ? `${brl(pagar)} (pagamento total agora)` : brl(pagar));
+    const descontoTxt = estado.cupom ? ` · cupom ${estado.cupom.codigo} (−${estado.cupom.percentual}%)` : '';
+    $('r-valor').textContent = total === 0
+      ? `Sem nada a pagar${descontoTxt}`
+      : (pagar < total
+        ? `Sinal de ${brl(pagar)} agora (total ${brl(total)})${descontoTxt}`
+        : (estado.config.pagamento ? `${brl(pagar)} (pagamento total agora)${descontoTxt}` : brl(pagar) + descontoTxt));
     const aviso = $('aviso-pagamento');
-    aviso.hidden = !estado.config.pagamento;
-    const restante = servico.preco_centavos - pagar;
+    aviso.hidden = !estado.config.pagamento || total === 0;
+    const restante = total - pagar;
     aviso.textContent = restante > 0
       ? `Para garantir o horário, você paga um sinal de ${brl(pagar)} agora por Pix ou cartão, em ambiente seguro do Mercado Pago. O restante, ${brl(restante)}, é pago na clínica. O horário fica reservado por ${estado.config.reserva_min} minutos para você concluir o pagamento.`
       : `Você paga ${brl(pagar)} por Pix ou cartão, em ambiente seguro do Mercado Pago. O horário fica reservado por ${estado.config.reserva_min} minutos para você concluir o pagamento.`;
     $('enviar').textContent = rotuloEnviar();
   }
+
+  // ----- Cupom -----
+  function avisoCupom(texto, erro) {
+    const m = $('msg-cupom');
+    m.textContent = texto || '';
+    m.hidden = !texto;
+    m.classList.toggle('erro-cupom', Boolean(erro));
+  }
+  async function aplicarCupom() {
+    const codigo = $('cupom').value.trim();
+    if (!codigo) { estado.cupom = null; avisoCupom(''); atualizarResumo(); return; }
+    const botao = $('aplicar-cupom');
+    botao.disabled = true;
+    try {
+      const r = await api('/api/cupom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo }),
+      });
+      estado.cupom = r;
+      $('cupom').value = r.codigo;
+      avisoCupom(`Cupom aplicado: ${r.percentual}% de desconto.`, false);
+    } catch (e) {
+      estado.cupom = null;
+      avisoCupom(e.message, true);
+    } finally {
+      botao.disabled = false;
+      atualizarResumo();
+    }
+  }
+  $('aplicar-cupom').addEventListener('click', aplicarCupom);
+  $('cupom').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); aplicarCupom(); } });
+  $('cupom').addEventListener('input', () => {
+    // Mudou o código depois de aplicar: o desconto some até aplicar de novo.
+    if (estado.cupom && $('cupom').value.trim().toUpperCase() !== estado.cupom.codigo) {
+      estado.cupom = null; avisoCupom(''); atualizarResumo();
+    }
+  });
 
   // ----- Formulário -----
   function mascaraWhatsapp(v) {
@@ -477,10 +536,14 @@
     const erroGeral = $('erro-geral');
     erroGeral.hidden = true;
     if (!estado.servico || !estado.data || !estado.hora || !validar()) return;
+    if ($('cupom').value.trim() && !estado.cupom) {
+      await aplicarCupom();
+      if (!estado.cupom) { $('cupom').focus(); return; }
+    }
 
     const botao = $('enviar');
     botao.disabled = true;
-    botao.textContent = estado.config.pagamento ? 'Abrindo o pagamento…' : 'Confirmando…';
+    botao.textContent = estado.config.pagamento && precoFinal() > 0 ? 'Abrindo o pagamento…' : 'Confirmando…';
     try {
       const r = await api('/api/agendamentos', {
         method: 'POST',
@@ -495,6 +558,8 @@
           site: $('site').value,
           pagar_tudo: estado.pagarTudo,
           preco_esperado_centavos: estado.servico.preco_centavos,
+          cupom: estado.cupom ? estado.cupom.codigo : '',
+          total_esperado_centavos: estado.cupom ? precoFinal() : undefined,
         }),
       });
       if (r.pagamento_url) {
@@ -535,10 +600,12 @@
     const total = r.total_centavos || r.servico.preco_centavos;
     const pago = r.valor_centavos || 0;
     const valores = $('s-valores');
-    valores.hidden = !(pago > 0);
-    if (!valores.hidden) valores.textContent = total > pago
-      ? `Sinal pago: ${brl(pago)}. Falta pagar ${brl(total - pago)} na clínica.`
-      : `Pagamento total confirmado: ${brl(pago)}. Nada a pagar na clínica.`;
+    valores.hidden = !(pago > 0 || r.desconto_centavos > 0);
+    if (!valores.hidden) valores.textContent = pago === 0
+      ? `Cupom ${r.cupom} aplicado. Nada a pagar agora${total > 0 ? `; ${brl(total)} na clínica` : ''}.`
+      : (total > pago
+        ? `Sinal pago: ${brl(pago)}. Falta pagar ${brl(total - pago)} na clínica.`
+        : `Pagamento total confirmado: ${brl(pago)}. Nada a pagar na clínica.`);
     if (WHATSAPP_CLINICA) {
       const texto = encodeURIComponent(`Olá! Meu código de agendamento é ${r.codigo}.`);
       $('s-whatsapp').href = `https://wa.me/${WHATSAPP_CLINICA}?text=${texto}`;

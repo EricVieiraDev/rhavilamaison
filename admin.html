@@ -68,6 +68,7 @@
   .barra > i { display: block; height: 100%; background: var(--preto); }
   .promo-acoes { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-top: .7rem; }
   .promo-acoes input[type="number"] { width: 6rem; min-height: 2.4rem; }
+  .promo-acoes input[type="text"] { width: 10rem; min-height: 2.4rem; text-transform: uppercase; }
   .linha { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
 
   .aviso { padding: .75rem 1rem; border-radius: 10px; margin: 0 0 1rem; background: var(--areia); }
@@ -151,6 +152,7 @@
       <button class="aba" role="tab" id="aba-folgas" aria-controls="painel-folgas" aria-selected="false" type="button">Folgas</button>
       <button class="aba" role="tab" id="aba-servicos" aria-controls="painel-servicos" aria-selected="false" type="button">Serviços</button>
       <button class="aba" role="tab" id="aba-promocoes" aria-controls="painel-promocoes" aria-selected="false" type="button">Promoções</button>
+      <button class="aba" role="tab" id="aba-cupons" aria-controls="painel-cupons" aria-selected="false" type="button">Cupons</button>
     </div>
 
     <!-- Agenda -->
@@ -256,6 +258,27 @@
         <button class="botao" type="submit">Criar promoção</button>
       </form>
     </div>
+    <!-- Cupons -->
+    <div id="painel-cupons" role="tabpanel" aria-labelledby="aba-cupons" hidden>
+      <p class="suave">Crie códigos de desconto em porcentagem. A cliente digita o código ao agendar e o desconto é aplicado no valor do serviço. Só você cria e altera os cupons aqui.</p>
+      <div id="lista-cupons"></div>
+      <form id="form-cupom" class="cartao" novalidate>
+        <h2>Novo cupom</h2>
+        <div class="linha">
+          <div class="campo">
+            <label for="c-codigo">Nome do cupom</label>
+            <input id="c-codigo" type="text" maxlength="20" autocomplete="off" autocapitalize="characters" placeholder="LANCAMENTO10" required>
+          </div>
+          <div class="campo">
+            <label for="c-percentual">Desconto (%)</label>
+            <input id="c-percentual" type="number" min="1" max="100" inputmode="numeric" placeholder="10" required>
+          </div>
+        </div>
+        <p class="suave pequeno">Use letras e números, sem espaços (ex.: BEMVINDA15). Maiúsculas ou minúsculas não fazem diferença para a cliente.</p>
+        <p id="erro-cupom" class="aviso erro" role="alert" hidden></p>
+        <button class="botao" type="submit">Criar cupom</button>
+      </form>
+    </div>
   </section>
 </main>
 
@@ -358,7 +381,7 @@
   });
 
   // ----- Abas -----
-  const abas = { agenda: carregarAgenda, folgas: carregarFolgas, servicos: carregarServicos, promocoes: carregarPromocoes };
+  const abas = { agenda: carregarAgenda, folgas: carregarFolgas, servicos: carregarServicos, promocoes: carregarPromocoes, cupons: carregarCupons };
   for (const nome of Object.keys(abas)) {
     $('aba-' + nome).addEventListener('click', () => {
       for (const outro of Object.keys(abas)) {
@@ -448,6 +471,7 @@
         : ` · ${brl(a.valor_centavos)}${pago ? ' pago' : ' a pagar'}`;
     }
     if (a.promocao_id) valor += ' · promoção';
+    if (a.cupom_codigo) valor += ` · cupom ${a.cupom_codigo} (−${brl(a.desconto_centavos || 0)})`;
     return el('div', { class: 'item' + (a.status === 'cancelado' || a.status === 'expirado' ? ' apagado' : '') },
       el('div', { class: 'hora' }, a.hora),
       el('div', {},
@@ -664,6 +688,71 @@
       mostrarAviso('Promoção criada. Já aparece para os clientes, com o contador de vagas.', 'ok');
       $('p-preco').value = ''; $('p-fim').value = '';
       carregarPromocoes();
+    } catch (e) {
+      if (e.status !== 401) { erro.textContent = e.message; erro.hidden = false; }
+    }
+  });
+
+  // ----- Cupons -----
+  async function carregarCupons() {
+    const caixa = $('lista-cupons');
+    try {
+      const { cupons } = await api('/cupons');
+      caixa.replaceChildren(...(cupons.length ? cupons.map(cartaoCupom)
+        : [el('p', { class: 'suave' }, 'Nenhum cupom criado ainda.')]));
+    } catch (e) {
+      if (e.status !== 401) caixa.replaceChildren(el('p', { class: 'aviso erro' }, e.message));
+    }
+  }
+
+  function cartaoCupom(c) {
+    const nome = el('input', { type: 'text', maxlength: '20', value: c.codigo, 'aria-label': 'Nome do cupom', autocapitalize: 'characters' });
+    const pct = el('input', { type: 'number', min: '1', max: '100', value: String(c.percentual), 'aria-label': 'Desconto em porcentagem' });
+    const salvar = el('button', { class: 'botao claro mini', type: 'button' }, 'Salvar');
+    salvar.addEventListener('click', async () => {
+      salvar.disabled = true;
+      try {
+        await api(`/cupons/${c.id}`, { metodo: 'PUT', corpo: { codigo: nome.value, percentual: Number(pct.value) } });
+        mostrarAviso('Cupom atualizado.', 'ok');
+        carregarCupons();
+      } catch (e) { salvar.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+    });
+    const alternar = el('button', { class: 'botao claro mini', type: 'button' }, c.ativo ? 'Pausar' : 'Reativar');
+    alternar.addEventListener('click', async () => {
+      alternar.disabled = true;
+      try { await api(`/cupons/${c.id}`, { metodo: 'PUT', corpo: { ativo: c.ativo ? 0 : 1 } }); carregarCupons(); }
+      catch (e) { alternar.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+    });
+    const excluir = el('button', { class: 'botao claro mini', type: 'button' }, 'Excluir');
+    let armado = false;
+    excluir.addEventListener('click', async () => {
+      if (!armado) {
+        armado = true; excluir.textContent = 'Toque de novo para excluir';
+        setTimeout(() => { armado = false; excluir.textContent = 'Excluir'; }, 4000);
+        return;
+      }
+      excluir.disabled = true;
+      try { await api(`/cupons/${c.id}`, { metodo: 'DELETE' }); mostrarAviso('Cupom excluído.', 'ok'); carregarCupons(); }
+      catch (e) { excluir.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+    });
+    return el('div', { class: 'servico-card' + (c.ativo ? '' : ' inativo') },
+      el('div', { class: 'servico-topo' },
+        el('div', {},
+          el('h3', {}, `${c.codigo} · ${c.percentual}% de desconto`),
+          el('div', { class: 'suave pequeno' }, c.usos === 1 ? 'Usado em 1 agendamento confirmado' : `Usado em ${c.usos} agendamentos confirmados`)),
+        el('span', { class: 'selo ' + (c.ativo ? 'confirmado' : 'cancelado') }, c.ativo ? 'Valendo' : 'Pausado')),
+      el('div', { class: 'promo-acoes' }, nome, pct, salvar, alternar, excluir));
+  }
+
+  $('form-cupom').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const erro = $('erro-cupom');
+    erro.hidden = true;
+    try {
+      await api('/cupons', { metodo: 'POST', corpo: { codigo: $('c-codigo').value, percentual: Number($('c-percentual').value) } });
+      mostrarAviso('Cupom criado. Já pode ser usado no agendamento.', 'ok');
+      $('c-codigo').value = ''; $('c-percentual').value = '';
+      carregarCupons();
     } catch (e) {
       if (e.status !== 401) { erro.textContent = e.message; erro.hidden = false; }
     }
