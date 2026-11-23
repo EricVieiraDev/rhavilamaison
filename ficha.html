@@ -125,9 +125,14 @@
   .sessoes { width: 100%; border-collapse: collapse; }
   .sessoes th { text-align: left; font-weight: 500; color: var(--tinta-suave); font-size: .85rem; padding: 0 .4rem .3rem 0; }
   .sessoes td { padding: .25rem .4rem .25rem 0; vertical-align: top; }
+  .sessoes { table-layout: fixed; }
+  .sessoes th:nth-child(1), .sessoes td:nth-child(1) { width: 8.6rem; }
+  .sessoes th:nth-child(5), .sessoes td:nth-child(5) { width: 4.6rem; }
+  .sessoes th:nth-child(6), .sessoes td:nth-child(6) { width: 3.2rem; }
+  .sessoes input { padding: .5rem .55rem; }
   .sessoes input { min-height: 2.6rem; }
   @media (max-width: 760px) {
-    .sessoes, .sessoes tbody, .sessoes tr, .sessoes td { display: block; width: 100%; }
+    .sessoes, .sessoes tbody, .sessoes tr, .sessoes td { display: block; width: 100% !important; }
     .sessoes thead { display: none; }
     .sessoes tr { border: 1px solid var(--linha); border-radius: 10px; padding: .6rem; margin-bottom: .7rem; }
   }
@@ -183,7 +188,7 @@
 
     <!-- Ficha salva com sucesso -->
     <section id="v-salva" hidden>
-      <div class="ok-geral"><strong>Ficha salva.</strong> Código <span id="cod-salvo"></span>.</div>
+      <div class="ok-geral"><strong>Ficha salva.</strong> Código <span id="cod-salvo"></span>. Em “Ver ficha” você acompanha as sessões, na parte de baixo (Acompanhamento).</div>
       <div class="acoes">
         <button id="ver-salva" class="botao cheio" type="button">Ver ficha</button>
         <button id="outra" class="botao" type="button">Preencher outra ficha</button>
@@ -722,19 +727,20 @@
         return el('td', {}, inp);
       };
       return el('tr', {}, campo('data', 'date', 'Data'), campo('procedimento', 'text', 'Procedimento'), campo('produtos', 'text', 'Produtos / parâmetros'),
-        campo('observacoes', 'text', 'Observações / reações'),
+        campo('observacoes', 'text', 'Observações / reações'), campo('visto', 'text', 'Visto (iniciais)'),
         el('td', { class: 'noprint' }, el('button', { class: 'botao', type: 'button', 'aria-label': 'Remover sessão', onclick: () => { sessoes.splice(i, 1); redesenhar(); } }, '×')));
     };
     const redesenhar = () => corpo.replaceChildren(...sessoes.map(linha));
     redesenhar();
     const msg = el('p', { class: 'suave pequeno noprint', style: 'margin:.5rem 0 0' });
     return el('section', { class: 'secao' },
-      el('h2', {}, 'Registro de sessões'),
+      el('h2', {}, 'Acompanhamento · Registro de sessões'),
+      el('p', { style: 'margin:0 0 .6rem' }, el('span', { class: 'suave' }, 'Cliente: '), fichaAberta.nome),
       el('p', { class: 'suave pequeno' }, 'A cada retorno, confirme com a cliente se houve mudança de saúde, medicamentos, gravidez ou procedimentos feitos fora da clínica.'),
       el('table', { class: 'sessoes' },
-        el('thead', {}, el('tr', {}, ['Data', 'Procedimento', 'Produtos / parâmetros', 'Observações / reações', ''].map((t) => el('th', {}, t)))), corpo),
+        el('thead', {}, el('tr', {}, ['Data', 'Procedimento', 'Produtos / parâmetros', 'Observações / reações', 'Visto', ''].map((t) => el('th', {}, t)))), corpo),
       el('div', { class: 'acoes noprint', style: 'margin-bottom:0' },
-        el('button', { class: 'botao', type: 'button', onclick: () => { sessoes.push({ data: hojeISO(), procedimento: '', produtos: '', observacoes: '' }); redesenhar(); } }, '+ Adicionar sessão'),
+        el('button', { class: 'botao', type: 'button', onclick: () => { sessoes.push({ data: hojeISO(), procedimento: '', produtos: '', observacoes: '', visto: '' }); redesenhar(); } }, '+ Adicionar sessão'),
         el('button', { class: 'botao cheio', type: 'button', onclick: async (e) => {
           e.target.disabled = true;
           try { await api(`/api/admin/fichas/${fichaAberta.codigo}/sessoes`, { metodo: 'PUT', corpo: { sessoes } }); msg.textContent = 'Sessões salvas.'; }
