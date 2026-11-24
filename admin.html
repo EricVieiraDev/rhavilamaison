@@ -221,8 +221,8 @@
         <div class="campo">
           <label for="s-passo">Horários oferecidos</label>
           <select id="s-passo">
+            <option value="60" selected>De hora em hora (09:00, 10:00, 11:00…)</option>
             <option value="30">De meia em meia hora (09:00, 09:30, 10:00…)</option>
-            <option value="60">De hora em hora (09:00, 10:00, 11:00…)</option>
           </select>
         </div>
         <p id="erro-servico" class="aviso erro" role="alert" hidden></p>
@@ -573,10 +573,22 @@
             carregarServicos();
           } catch (e) { alternar.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
         });
+        const excluir = el('button', { class: 'botao claro mini', type: 'button' }, 'Excluir');
+        let armado = false;
+        excluir.addEventListener('click', async () => {
+          if (!armado) {
+            armado = true; excluir.textContent = 'Toque de novo para excluir';
+            setTimeout(() => { armado = false; excluir.textContent = 'Excluir'; }, 4000);
+            return;
+          }
+          excluir.disabled = true;
+          try { await api(`/servicos/${s.id}`, { metodo: 'DELETE' }); mostrarAviso('Serviço excluído.', 'ok'); carregarServicos(); }
+          catch (e) { excluir.disabled = false; excluir.textContent = 'Excluir'; armado = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+        });
         return el('div', { class: 'servico-card' + (s.ativo ? '' : ' inativo') },
           el('div', { class: 'servico-topo' },
             el('div', {}, el('h3', {}, s.nome), el('div', { class: 'suave pequeno' }, `${duracao(s.duracao_min)} · ${brl(s.preco_centavos)} · horários ${s.passo_min === 60 ? 'de hora em hora' : (s.passo_min === 30 ? 'de meia em meia hora' : 'a cada ' + s.passo_min + ' min')}${s.ativo ? '' : ' · desativado (não aparece para os clientes)'}`)),
-            el('div', { style: 'display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end' }, editar, alternar)),
+            el('div', { style: 'display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end' }, editar, alternar, excluir)),
           s.descricao ? el('p', { class: 'suave pequeno', style: 'margin:.5rem 0 0' }, s.descricao) : null);
       }));
     } catch (e) {
