@@ -484,13 +484,16 @@
       el('div', {},
         el('div', { class: 'nome' }, a.nome, el('span', { class: 'selo ' + a.status }, rotulos[a.status] ?? a.status)),
         el('div', { class: 'suave pequeno' }, `${a.servico} (${duracao(a.duracao_min)})${valor}`),
-        el('div', { class: 'suave pequeno' }, `${formatarZap(a.whatsapp)}${a.email ? ' · ' + a.email : ''} · código ${a.codigo}`)
+        el('div', { class: 'suave pequeno' }, `${formatarZap(a.whatsapp)}${a.email ? ' · ' + a.email : ''} · código ${a.codigo}`),
+        // Procedimento para outra pessoa: mostra quem reservou e paga (o pagamento é do pedido todo).
+        a.pagador_nome ? el('div', { class: 'suave pequeno' }, `Reservado e pago por ${a.pagador_nome} · ${formatarZap(a.pagador_whatsapp || '')}`) : null
       ),
       acoes
     );
   }
 
   function formatarZap(n) {
+    if (!n) return '';
     return n.length === 11 ? `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}` : `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
   }
 

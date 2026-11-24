@@ -98,6 +98,17 @@
   .hora[aria-pressed="true"] { background: var(--preto); border-color: var(--preto); color: var(--papel); }
   .aviso { color: var(--tinta-suave); margin: 0; }
 
+  /* Dia e horário de cada procedimento */
+  .bloco { margin: 0 0 1.75rem; padding: 1.1rem 1.1rem 1.25rem; background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 14px; }
+  .bloco-titulo { font: 400 1.3rem/1.2 var(--serif); margin: 0 0 .9rem; }
+  .bloco .opcoes-pgto { margin-bottom: 1rem; }
+  .bloco .outra { margin: -.25rem 0 1.1rem; }
+  .bloco .outra input { margin-bottom: .6rem; }
+  .rotulo-bloco { font-weight: 600; margin: 1rem 0 .5rem; }
+  .r-item + .r-item { margin-top: .9rem; padding-top: .9rem; border-top: 1px solid var(--linha); }
+  .r-item .preco-item { margin: .15rem 0 0; color: var(--tinta-suave); }
+  #s-resumo p { margin: 0 0 .35rem; }
+
   /* Formulário */
   .resumo {
     margin: 0 0 1.5rem; padding: 1rem 1.1rem; background: var(--areia); border-radius: 14px;
@@ -168,23 +179,19 @@
       </div>
     </section>
 
-    <section id="s-dia" aria-labelledby="t-dia" hidden>
-      <h2 id="t-dia">Dia</h2>
-      <div id="dias" class="faixa"></div>
-    </section>
-
-    <section id="s-hora" aria-labelledby="t-hora" hidden>
-      <h2 id="t-hora">Horário</h2>
-      <p id="msg-horas" class="aviso" role="status" hidden></p>
-      <div id="horas" class="grade"></div>
+    <section id="s-agenda" aria-labelledby="t-agenda" hidden>
+      <h2 id="t-agenda">Dia e horário</h2>
+      <p id="dica-pessoas" class="privacidade" hidden></p>
+      <p id="aviso-agenda" class="erro-geral" role="alert" hidden></p>
+      <div id="blocos"></div>
     </section>
 
     <section id="s-dados" aria-labelledby="t-dados" hidden>
       <h2 id="t-dados">Seus dados</h2>
 
+      <p id="nota-dados" class="privacidade" hidden>Estes são os dados de quem está reservando e pagando. Os dados das outras pessoas foram informados em cada procedimento.</p>
       <div class="resumo" aria-live="polite">
-        <p class="titulo" id="r-servico"></p>
-        <p class="quando" id="r-quando"></p>
+        <div id="r-lista"></div>
         <p class="valor" id="r-valor"></p>
       </div>
 
@@ -245,7 +252,7 @@
 
   <section id="sucesso" class="sucesso" aria-labelledby="t-sucesso" tabindex="-1" hidden>
     <h2 id="t-sucesso">Horário confirmado</h2>
-    <p id="s-resumo"></p>
+    <div id="s-resumo"></div>
     <p id="s-valores" hidden></p>
     <p>Seu código de agendamento:</p>
     <span class="codigo" id="s-codigo"></span>
@@ -267,7 +274,7 @@
   // ==========================
 
   const $ = (id) => document.getElementById(id);
-  const estado = { itens: [], cupom: null, pagarTudo: false, config: null, servico: null, data: null, hora: null, busca: 0 };
+  const estado = { itens: [], blocos: [], cupom: null, pagarTudo: false, config: null };
   const reduzMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const brl = (c) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -355,10 +362,11 @@
   }
 
   // Dá para escolher até 4 procedimentos, inclusive repetir o mesmo (ex.: 2 limpezas).
-  // Eles ficam no mesmo horário marcado, um depois do outro, com um só pagamento.
+  // Cada procedimento tem o seu dia e horário e pode ser para outra pessoa. O pagamento é um só.
   const MAX_ITENS = 4;
   const refs = new Map();
   const quantos = (id) => estado.itens.filter((x) => x.id === id).length;
+  const paraMin = (h) => { const [a, b] = h.split(':').map(Number); return a * 60 + b; };
 
   function adicionar(s) {
     if (estado.itens.length >= MAX_ITENS) { atualizarSelecao(); return; }
@@ -390,65 +398,93 @@
     const dica = $('dica-combo');
     dica.hidden = total === 0;
     dica.textContent = total === 1
-      ? 'Quer fazer mais de um procedimento? Toque em outro serviço, ou use o + para repetir este. Dá para escolher até 4: ficam no mesmo horário, um depois do outro, com um só pagamento.'
-      : (total >= MAX_ITENS ? 'Você escolheu 4 procedimentos, o máximo. Eles ficam juntos, com um só pagamento.' : (total > 1 ? `Você escolheu ${total} procedimentos juntos. Pode adicionar até ${MAX_ITENS}. Um só pagamento.` : ''));
+      ? 'Quer fazer mais de um procedimento? Toque em outro serviço, ou use o + para repetir este. Dá para escolher até 4. Cada um tem o seu dia e horário e pode ser para outra pessoa. O pagamento é um só.'
+      : (total >= MAX_ITENS ? 'Você escolheu 4 procedimentos, o máximo. Cada um tem o seu dia e horário. O pagamento é um só.' : (total > 1 ? `Você escolheu ${total} procedimentos. Pode adicionar até ${MAX_ITENS}. Cada um tem o seu dia e horário. O pagamento é um só.` : ''));
   }
+
+  // ----- Um bloco (dia, horário e pessoa) para cada procedimento -----
+  let contadorBlocos = 0;
 
   function aplicarSelecao() {
     atualizarSelecao();
-    if (!estado.itens.length) {
-      estado.servico = null; estado.hora = null;
-      $('s-dia').hidden = true; $('s-hora').hidden = true; $('s-dados').hidden = true;
-      return;
-    }
-    escolherServico(combinar(estado.itens));
+    sincronizarBlocos();
+    $('s-agenda').hidden = !estado.blocos.length;
+    if (!estado.blocos.length) { $('s-dados').hidden = true; return; }
+    $('aviso-agenda').hidden = true;
+    atualizarFluxo();
   }
 
-  // Junta os procedimentos escolhidos em um só: soma duração e preço.
-  // Só uma promoção por agendamento: a do primeiro procedimento que tiver promoção. Repetindo o mesmo
-  // procedimento promocional, o preço promocional vale em todas as unidades (cada uma usa uma vaga;
-  // se faltarem vagas, as demais saem pelo preço normal). O servidor aplica a mesma regra.
-  function combinar(itens) {
-    const ids = itens.map((s) => s.id);
-    if (itens.length === 1) return { ...itens[0], ids };
-    const promoItem = itens.find((s) => s.promocao);
-    const promo = promoItem ? promoItem.promocao : null;
-    let restam = promoItem ? Math.min(itens.filter((s) => s.id === promoItem.id).length, promo.vagas_restantes) : 0;
-    let preco = 0;
-    for (const s of itens) {
-      if (promoItem && s.id === promoItem.id && restam > 0) { restam--; preco += s.preco_centavos; }
-      else preco += s.preco_normal_centavos ?? s.preco_centavos;
+  function sincronizarBlocos() {
+    const antigos = new Map(estado.blocos.map((b) => [b.chave, b]));
+    const contagem = new Map();
+    const novos = [];
+    for (const s of estado.itens) {
+      const n = (contagem.get(s.id) ?? 0) + 1;
+      contagem.set(s.id, n);
+      const chave = `${s.id}#${n}`;
+      let b = antigos.get(chave);
+      if (!b) {
+        b = { chave, servico: s, data: null, hora: null, outra: false, nome: '', whatsapp: '', resp: null, busca: 0 };
+        montarBloco(b);
+        // Já nasce no mesmo dia do primeiro procedimento (é o mais comum); dá para trocar.
+        const base = estado.blocos.find((o) => o.data);
+        if (base) { b.data = base.data; marcarDias(b); carregarHorarios(b); }
+      }
+      novos.push(b);
     }
-    const qtd = new Map();
-    for (const s of itens) qtd.set(s.id, { s, n: (qtd.get(s.id)?.n ?? 0) + 1 });
-    return {
-      id: itens[0].id,
-      ids,
-      nome: [...qtd.values()].map(({ s, n }) => (n > 1 ? `${n}× ` : '') + s.nome).join(' + '),
-      duracao_min: itens.reduce((t, s) => t + s.duracao_min, 0),
-      preco_centavos: preco,
-      preco_normal_centavos: itens.reduce((t, s) => t + (s.preco_normal_centavos ?? s.preco_centavos), 0),
-      promocao: promo,
+    estado.blocos = novos;
+    $('blocos').replaceChildren(...novos.map((b) => b.el));
+    novos.forEach((b, i) => {
+      const varios = novos.length > 1;
+      b.refs.titulo.hidden = !varios;
+      b.refs.titulo.textContent = `Procedimento ${i + 1} de ${novos.length} · ${b.servico.nome} (${duracao(b.servico.duracao_min)})`;
+      b.refs.para.hidden = !varios;
+      if (!varios && b.outra) { b.outra = false; b.refs.radEu.checked = true; b.refs.outra.hidden = true; }
+    });
+    const dp = $('dica-pessoas');
+    dp.hidden = novos.length < 2;
+    dp.textContent = 'Escolha o dia e o horário de cada procedimento. Se um deles for para outra pessoa (ex.: sua esposa), marque "Para outra pessoa" e informe o nome e o WhatsApp dela.';
+    novos.forEach(renderHoras);
+  }
+
+  function montarBloco(b) {
+    const grupo = `bloco-${++contadorBlocos}`;
+    const radEu = el('input', { type: 'radio', name: grupo, value: 'eu', checked: '' });
+    const radOutra = el('input', { type: 'radio', name: grupo, value: 'outra' });
+    const para = el('fieldset', { class: 'opcoes-pgto' },
+      el('legend', {}, 'Para quem é este procedimento?'),
+      el('label', {}, radEu, el('span', {}, 'Para mim')),
+      el('label', {}, radOutra, el('span', {}, 'Para outra pessoa')));
+    const inNome = el('input', { type: 'text', maxlength: '100', autocomplete: 'off', placeholder: 'Nome completo da pessoa', 'aria-label': 'Nome completo da pessoa' });
+    const inZap = el('input', { type: 'tel', inputmode: 'tel', autocomplete: 'off', placeholder: 'WhatsApp da pessoa, com DDD', 'aria-label': 'WhatsApp da pessoa' });
+    const erro = el('p', { class: 'erro', role: 'alert', hidden: '' });
+    const outra = el('div', { class: 'outra', hidden: '' },
+      el('p', { class: 'privacidade' }, 'Informe os dados de quem vai fazer este procedimento. Você continua sendo quem reserva e paga.'),
+      inNome, inZap, erro);
+    const titulo = el('h3', { class: 'bloco-titulo' });
+    const faixa = el('div', { class: 'faixa' });
+    const msg = el('p', { class: 'aviso', role: 'status', hidden: '' });
+    const grade = el('div', { class: 'grade' });
+    const legenda = el('p', { class: 'legenda-horas', hidden: '' }, 'Horários riscados não estão disponíveis.');
+    b.el = el('div', { class: 'bloco' }, titulo, para, outra,
+      el('p', { class: 'rotulo-bloco' }, 'Dia'), faixa,
+      el('p', { class: 'rotulo-bloco' }, 'Horário'), msg, grade, legenda);
+    b.refs = { titulo, para, radEu, outra, inNome, inZap, erro, faixa, msg, grade, legenda };
+
+    const mudouPessoa = () => {
+      b.outra = radOutra.checked;
+      outra.hidden = !b.outra;
+      atualizarResumo();
     };
-  }
-
-  function escolherServico(servico) {
-    estado.servico = servico;
-    estado.hora = null;
-    montarDias();
-    $('s-dia').hidden = false;
-    if (estado.data) {
-      carregarHorarios();
-    } else {
-      $('s-hora').hidden = true;
-      $('s-dados').hidden = true;
-      rolarPara($('s-dia'));
-    }
-    atualizarResumo();
+    radEu.addEventListener('change', mudouPessoa);
+    radOutra.addEventListener('change', () => { mudouPessoa(); if (b.outra) inNome.focus(); });
+    inNome.addEventListener('input', () => { b.nome = inNome.value; atualizarResumo(); });
+    inZap.addEventListener('input', () => { inZap.value = mascaraWhatsapp(inZap.value); b.whatsapp = inZap.value; });
+    montarDias(b);
   }
 
   // ----- Dias -----
-  function montarDias() {
+  function montarDias(b) {
     const { hoje, dias_abertos, max_dias } = estado.config;
     const total = Math.min(DIAS_NA_FAIXA, max_dias + 1);
     const botoes = [];
@@ -456,110 +492,149 @@
       const data = somarDias(hoje, i);
       const d = objData(data);
       const aberto = dias_abertos.includes(d.getUTCDay());
-      const b = el('button', { class: 'dia', type: 'button', 'aria-pressed': String(data === estado.data) },
+      const bt = el('button', { class: 'dia', type: 'button', 'data-data': data, 'aria-pressed': 'false' },
         el('span', { class: 'sem' }, d.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: 'UTC' }).replace('.', '')),
         el('span', { class: 'num' }, String(d.getUTCDate())),
         el('span', { class: 'mes' }, d.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' }).replace('.', ''))
       );
-      b.setAttribute('aria-label', dataLonga(data) + (aberto ? '' : ', fechado'));
-      if (!aberto) b.disabled = true;
-      b.addEventListener('click', () => escolherDia(data));
-      botoes.push(b);
+      bt.setAttribute('aria-label', dataLonga(data) + (aberto ? '' : ', fechado'));
+      if (!aberto) bt.disabled = true;
+      bt.addEventListener('click', () => escolherDia(b, data));
+      botoes.push(bt);
     }
-    $('dias').replaceChildren(...botoes);
+    b.refs.faixa.replaceChildren(...botoes);
   }
 
-  function escolherDia(data) {
-    estado.data = data;
-    estado.hora = null;
-    document.querySelectorAll('.dia').forEach((b, i) => {
-      b.setAttribute('aria-pressed', String(somarDias(estado.config.hoje, i) === data));
-    });
-    $('s-dados').hidden = true;
-    carregarHorarios();
+  function marcarDias(b) {
+    b.refs.faixa.querySelectorAll('.dia').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.data === b.data)));
+  }
+
+  function escolherDia(b, data) {
+    b.data = data;
+    b.hora = null;
+    marcarDias(b);
+    carregarHorarios(b);
+    // Os outros procedimentos que ainda não têm dia ficam no mesmo dia (dá para trocar depois).
+    for (const o of estado.blocos) {
+      if (o !== b && !o.data) { o.data = data; marcarDias(o); carregarHorarios(o); }
+    }
+    atualizarFluxo();
   }
 
   // ----- Horários -----
-  async function carregarHorarios() {
-    const busca = ++estado.busca;
-    document.querySelectorAll('#legenda-horas').forEach((x) => x.remove());
-    const secao = $('s-hora');
-    const msg = $('msg-horas');
-    const grade = $('horas');
-    secao.hidden = false;
+  async function carregarHorarios(b) {
+    const busca = ++b.busca;
+    const { msg, grade, legenda } = b.refs;
+    b.resp = null;
     grade.replaceChildren();
+    legenda.hidden = true;
     msg.hidden = false;
     msg.textContent = 'Buscando horários…';
     try {
-      const r = await api(`/api/horarios?servicos=${estado.servico.ids.join(',')}&data=${estado.data}`);
-      if (busca !== estado.busca) return; // o cliente já escolheu outro dia ou serviço
-      if (!r.horarios.length) {
-        msg.textContent = 'Sem horários livres neste dia. Escolha outro dia.';
-        if (!(r.ocupados || []).length) return;
-      } else {
-        msg.hidden = true;
-      }
-      // Livres e já marcados juntos, em ordem; os marcados aparecem apagados e não podem ser escolhidos.
-      const todos = [...r.horarios.map((h) => [h, true]), ...(r.ocupados || []).map((h) => [h, false])].sort((a, b) => a[0].localeCompare(b[0]));
-      grade.replaceChildren(...todos.map(([h, livre]) => {
-        if (!livre) {
-          return el('button', { class: 'hora indisponivel', type: 'button', disabled: '', 'aria-label': `${h}, indisponível` }, h);
-        }
-        const b = el('button', { class: 'hora', type: 'button', 'aria-pressed': 'false' }, h);
-        b.addEventListener('click', () => escolherHora(h));
-        return b;
-      }));
-      if (r.ocupados && r.ocupados.length) {
-        grade.after(el('p', { class: 'legenda-horas', id: 'legenda-horas' }, 'Horários riscados já estão marcados.'));
-      }
-      rolarPara(secao);
+      const r = await api(`/api/horarios?servicos=${b.servico.id}&data=${b.data}`);
+      if (busca !== b.busca) return; // escolheu outro dia enquanto buscava
+      b.resp = { horarios: r.horarios, ocupados: r.ocupados || [] };
+      renderHoras(b);
+      atualizarFluxo();
     } catch (e) {
-      if (busca !== estado.busca) return;
+      if (busca !== b.busca) return;
       msg.textContent = e.message;
     }
   }
 
-  function escolherHora(hora) {
-    estado.hora = hora;
-    document.querySelectorAll('.hora').forEach((b) => b.setAttribute('aria-pressed', String(b.textContent === hora)));
-    atualizarResumo();
-    $('s-dados').hidden = false;
-    rolarPara($('s-dados'));
+  // Mostra livres e indisponíveis. Fica indisponível o que já está marcado e também o que bate com
+  // o horário escolhido para outro procedimento do mesmo pedido, no mesmo dia.
+  function renderHoras(b) {
+    if (!b.resp || !b.data) return;
+    const { msg, grade, legenda } = b.refs;
+    const dur = b.servico.duracao_min;
+    const intervalos = estado.blocos
+      .filter((o) => o !== b && o.data === b.data && o.hora)
+      .map((o) => [paraMin(o.hora), paraMin(o.hora) + o.servico.duracao_min]);
+    const choca = (h) => intervalos.some(([ini, fim]) => paraMin(h) < fim && paraMin(h) + dur > ini);
+    const livres = b.resp.horarios.filter((h) => !choca(h));
+    const fora = [...b.resp.ocupados, ...b.resp.horarios.filter(choca)];
+    if (b.hora && !livres.includes(b.hora)) b.hora = null;
+    msg.hidden = livres.length > 0;
+    if (!livres.length) msg.textContent = 'Sem horários livres neste dia. Escolha outro dia.';
+    const todos = [...livres.map((h) => [h, true]), ...fora.map((h) => [h, false])].sort((x, y) => x[0].localeCompare(y[0]));
+    grade.replaceChildren(...todos.map(([h, livre]) => {
+      if (!livre) return el('button', { class: 'hora indisponivel', type: 'button', disabled: '', 'aria-label': `${h}, indisponível` }, h);
+      const bt = el('button', { class: 'hora', type: 'button', 'aria-pressed': String(h === b.hora) }, h);
+      bt.addEventListener('click', () => escolherHora(b, h));
+      return bt;
+    }));
+    legenda.hidden = !fora.length;
   }
 
-  // Preço do serviço já com o cupom aplicado (o servidor confere de novo ao agendar).
-  const descontoCupom = () => (estado.cupom ? Math.round(estado.servico.preco_centavos * estado.cupom.percentual / 100) : 0);
-  const precoFinal = () => estado.servico.preco_centavos - descontoCupom();
-  const valorAPagar = () => (estado.pagarTudo
-    ? precoFinal()
-    : Math.round(precoFinal() * estado.config.percentual / 100));
-  const rotuloEnviar = () => (estado.config.pagamento && estado.servico && precoFinal() > 0 ? 'Ir para o pagamento' : 'Confirmar agendamento');
+  function escolherHora(b, hora) {
+    b.hora = hora;
+    renderHoras(b);
+    for (const o of estado.blocos) if (o !== b && o.data === b.data) renderHoras(o);
+    atualizarFluxo();
+    const falta = estado.blocos.find((o) => !o.data || !o.hora);
+    if (falta) rolarPara(falta.el);
+    else rolarPara($('s-dados'));
+  }
+
+  function atualizarFluxo() {
+    const completo = estado.blocos.length > 0 && estado.blocos.every((b) => b.data && b.hora);
+    $('s-dados').hidden = !completo;
+    if (completo) atualizarResumo();
+  }
+
+  // ----- Preço (o servidor confere de novo ao agendar, com as mesmas regras) -----
+  // Cada procedimento usa a promoção do próprio serviço enquanto houver vaga (cada unidade usa uma vaga).
+  // O cupom desconta de cada procedimento; o sinal é calculado sobre cada um.
+  function calcular() {
+    const restam = new Map();
+    const itens = estado.blocos.map((b) => {
+      const s = b.servico;
+      let preco = s.preco_normal_centavos ?? s.preco_centavos;
+      let promo = false;
+      if (s.promocao) {
+        const r = restam.has(s.id) ? restam.get(s.id) : s.promocao.vagas_restantes;
+        if (r > 0) { preco = s.preco_centavos; promo = true; }
+        restam.set(s.id, Math.max(0, r - 1));
+      }
+      const desc = estado.cupom ? Math.round(preco * estado.cupom.percentual / 100) : 0;
+      return { b, preco, promo, total: preco - desc };
+    });
+    const base = itens.reduce((t, x) => t + x.preco, 0);
+    const total = itens.reduce((t, x) => t + x.total, 0);
+    const sinal = itens.reduce((t, x) => t + Math.round(x.total * estado.config.percentual / 100), 0);
+    return { itens, base, total, sinal, valor: estado.pagarTudo ? total : sinal };
+  }
+  const rotuloEnviar = () => (estado.config.pagamento && estado.blocos.length && calcular().total > 0 ? 'Ir para o pagamento' : 'Confirmar agendamento');
 
   function atualizarResumo() {
-    const { servico, data, hora } = estado;
-    if (!servico || !data || !hora) return;
-    $('r-servico').textContent = servico.nome + (servico.promocao ? ' · ' + servico.promocao.rotulo : '');
-    $('r-quando').textContent = `${dataLonga(data)}, às ${hora} (${duracao(servico.duracao_min)})`;
-    const total = precoFinal();
-    const sinal = Math.round(total * estado.config.percentual / 100);
-    const podeEscolher = estado.config.pagamento && total > 0 && sinal < total;
+    if (!estado.blocos.length || !estado.blocos.every((b) => b.data && b.hora)) return;
+    const c = calcular();
+    const varios = c.itens.length > 1;
+    $('nota-dados').hidden = !varios;
+    $('r-lista').replaceChildren(...c.itens.map(({ b, preco, promo }) => el('div', { class: 'r-item' },
+      el('p', { class: 'titulo' }, b.servico.nome + (promo ? ' · ' + b.servico.promocao.rotulo : '')),
+      el('p', { class: 'quando' }, `${dataLonga(b.data)}, às ${b.hora} (${duracao(b.servico.duracao_min)})${b.outra && b.nome.trim() ? ' · para ' + b.nome.trim() : ''}`),
+      varios ? el('p', { class: 'preco-item' }, brl(preco)) : null)));
+    const podeEscolher = estado.config.pagamento && c.total > 0 && c.sinal < c.total;
     if (!podeEscolher) estado.pagarTudo = false;
     $('escolha-pagamento').hidden = !podeEscolher;
-    $('op-sinal').textContent = `Pagar só o sinal de ${brl(sinal)} agora e o restante na clínica`;
-    $('op-tudo').textContent = `Pagar tudo agora (${brl(total)})`;
-    const pagar = valorAPagar();
+    $('op-sinal').textContent = `Pagar só o sinal de ${brl(c.sinal)} agora e o restante na clínica`;
+    $('op-tudo').textContent = `Pagar tudo agora (${brl(c.total)})`;
+    const pagar = c.valor;
     const descontoTxt = estado.cupom ? ` · cupom ${estado.cupom.codigo} (−${estado.cupom.percentual}%)` : '';
-    $('r-valor').textContent = total === 0
+    $('r-valor').textContent = c.total === 0
       ? `Sem nada a pagar${descontoTxt}`
-      : (pagar < total
-        ? `Sinal de ${brl(pagar)} agora (total ${brl(total)})${descontoTxt}`
+      : (pagar < c.total
+        ? `Sinal de ${brl(pagar)} agora (total ${brl(c.total)})${descontoTxt}`
         : (estado.config.pagamento ? `${brl(pagar)} (pagamento total agora)${descontoTxt}` : brl(pagar) + descontoTxt));
     const aviso = $('aviso-pagamento');
-    aviso.hidden = !estado.config.pagamento || total === 0;
-    const restante = total - pagar;
+    aviso.hidden = !estado.config.pagamento || c.total === 0;
+    const restante = c.total - pagar;
+    const horarios = varios ? 'os horários' : 'o horário';
     aviso.textContent = restante > 0
-      ? `Para garantir o horário, você paga um sinal de ${brl(pagar)} agora por Pix ou cartão, em ambiente seguro do Mercado Pago. O restante, ${brl(restante)}, é pago na clínica. O horário fica reservado por ${estado.config.reserva_min} minutos para você concluir o pagamento.`
-      : `Você paga ${brl(pagar)} por Pix ou cartão, em ambiente seguro do Mercado Pago. O horário fica reservado por ${estado.config.reserva_min} minutos para você concluir o pagamento.`;
+      ? `Para garantir ${horarios}, você paga um sinal de ${brl(pagar)} agora por Pix ou cartão, em ambiente seguro do Mercado Pago. O restante, ${brl(restante)}, é pago na clínica. ${varios ? 'Os horários ficam reservados' : 'O horário fica reservado'} por ${estado.config.reserva_min} minutos para você concluir o pagamento.`
+      : `Você paga ${brl(pagar)} por Pix ou cartão, em ambiente seguro do Mercado Pago. ${varios ? 'Os horários ficam reservados' : 'O horário fica reservado'} por ${estado.config.reserva_min} minutos para você concluir o pagamento.`;
     $('enviar').textContent = rotuloEnviar();
   }
 
@@ -623,16 +698,29 @@
     input.setAttribute('aria-invalid', String(Boolean(mensagem)));
   }
 
+  const zapValido = (v) => /^[1-9][1-9]\d{8,9}$/.test(v.replace(/\D/g, ''));
+
   function validar() {
     const nome = $('nome').value.trim();
     const zap = $('whatsapp').value.replace(/\D/g, '');
     const email = $('email').value.trim();
     const erros = {
       nome: nome.length < 2 ? 'Informe seu nome.' : '',
-      whatsapp: !/^[1-9][1-9]\d{8,9}$/.test(zap) ? 'Informe um WhatsApp válido, com DDD.' : '',
+      whatsapp: !zapValido(zap) ? 'Informe um WhatsApp válido, com DDD.' : '',
       email: email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Esse e-mail não parece válido.' : '',
     };
     for (const [campo, msg] of Object.entries(erros)) marcarErro(campo, msg);
+    // Dados das outras pessoas, quando algum procedimento é para outra pessoa.
+    let primeiroBloco = null;
+    for (const b of estado.blocos) {
+      const falha = b.outra && (b.nome.trim().length < 2 || !zapValido(b.whatsapp));
+      b.refs.erro.hidden = !falha;
+      if (falha) {
+        b.refs.erro.textContent = 'Informe o nome completo e o WhatsApp (com DDD) da pessoa deste procedimento.';
+        primeiroBloco ??= b;
+      }
+    }
+    if (primeiroBloco) { rolarPara(primeiroBloco.el); primeiroBloco.refs.inNome.focus(); return false; }
     const primeiro = Object.keys(erros).find((c) => erros[c]);
     if (primeiro) $(primeiro).focus();
     return !primeiro;
@@ -642,32 +730,37 @@
     ev.preventDefault();
     const erroGeral = $('erro-geral');
     erroGeral.hidden = true;
-    if (!estado.servico || !estado.data || !estado.hora || !validar()) return;
+    if (!estado.blocos.length || !estado.blocos.every((b) => b.data && b.hora) || !validar()) return;
     if ($('cupom').value.trim() && !estado.cupom) {
       await aplicarCupom();
       if (!estado.cupom) { $('cupom').focus(); return; }
     }
 
+    const c = calcular();
     const botao = $('enviar');
     botao.disabled = true;
-    botao.textContent = estado.config.pagamento && precoFinal() > 0 ? 'Abrindo o pagamento…' : 'Confirmando…';
+    botao.textContent = estado.config.pagamento && c.total > 0 ? 'Abrindo o pagamento…' : 'Confirmando…';
     try {
       const r = await api('/api/agendamentos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          servico_id: estado.servico.id,
-          servico_ids: estado.servico.ids,
-          data: estado.data,
-          hora: estado.hora,
+          procedimentos: estado.blocos.map((b) => ({
+            servico_id: b.servico.id,
+            data: b.data,
+            hora: b.hora,
+            outra_pessoa: b.outra,
+            nome: b.outra ? b.nome : undefined,
+            whatsapp: b.outra ? b.whatsapp : undefined,
+          })),
           nome: $('nome').value,
           whatsapp: $('whatsapp').value,
           email: $('email').value,
           site: $('site').value,
           pagar_tudo: estado.pagarTudo,
-          preco_esperado_centavos: estado.servico.preco_centavos,
+          preco_esperado_centavos: c.base,
           cupom: estado.cupom ? estado.cupom.codigo : '',
-          total_esperado_centavos: estado.cupom ? precoFinal() : undefined,
+          total_esperado_centavos: estado.cupom ? c.total : undefined,
         }),
       });
       if (r.pagamento_url) {
@@ -685,12 +778,14 @@
         return;
       }
       if (e.status === 409) {
-        // Horário tomado por outra pessoa: atualiza a lista para escolher outro.
-        estado.hora = null;
+        // Horário tomado por outra pessoa: atualiza as listas para escolher outro.
+        const aviso = $('aviso-agenda');
+        aviso.textContent = e.message;
+        aviso.hidden = false;
         $('s-dados').hidden = true;
-        await carregarHorarios();
-        $('msg-horas').hidden = false;
-        $('msg-horas').textContent = e.message;
+        await Promise.all(estado.blocos.map(carregarHorarios));
+        atualizarFluxo();
+        rolarPara($('s-agenda'));
       }
     } finally {
       botao.disabled = false;
@@ -703,7 +798,10 @@
     $('retorno').hidden = true;
     document.querySelector('.intro').hidden = true;
     document.querySelector('h1').hidden = true;
-    $('s-resumo').textContent = `${r.servico.nome}, ${dataLonga(r.data)}, às ${r.hora}.`;
+    const itens = r.itens && r.itens.length ? r.itens : [{ servico: r.servico.nome, data: r.data, hora: r.hora, para: null }];
+    $('t-sucesso').textContent = itens.length > 1 ? 'Horários confirmados' : 'Horário confirmado';
+    $('s-resumo').replaceChildren(...itens.map((i) =>
+      el('p', {}, `${i.servico}, ${dataLonga(i.data)}, às ${i.hora}${i.para ? ` (para ${i.para})` : ''}.`)));
     $('s-codigo').textContent = r.codigo;
     const total = r.total_centavos || r.servico.preco_centavos;
     const pago = r.valor_centavos || 0;
