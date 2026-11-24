@@ -577,6 +577,7 @@
         el('div', { class: 'nome' }, a.nome, el('span', { class: 'selo ' + a.status }, rotulos[a.status] ?? a.status)),
         el('div', { class: 'suave pequeno' }, `${a.servico} (${duracao(a.duracao_min)})${valor}`),
         el('div', { class: 'suave pequeno' }, `${formatarZap(a.whatsapp)}${a.email ? ' · ' + a.email : ''} · código ${a.codigo}`),
+        a.aceite_em ? el('div', { class: 'suave pequeno' }, `Aceitou os termos em ${new Date(a.aceite_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' })} (versão ${a.aceite_versao})`) : null,
         // Procedimento para outra pessoa: mostra quem reservou e paga (o pagamento é do pedido todo).
         a.pagador_nome ? el('div', { class: 'suave pequeno' }, `Reservado e pago por ${a.pagador_nome} · ${formatarZap(a.pagador_whatsapp || '')}`) : null
       ),

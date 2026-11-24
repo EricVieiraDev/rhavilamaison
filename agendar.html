@@ -130,6 +130,15 @@
   .aviso-cupom { margin: .35rem 0 0; font-size: .92rem; color: var(--salvia); }
   .aviso-cupom.erro-cupom { color: var(--erro); }
   .erro { color: var(--erro); font-size: .92rem; margin: .35rem 0 0; }
+  .termo { border: 1px solid var(--linha); border-radius: 14px; background: var(--cartao); padding: 1rem 1.1rem; margin: 0 0 1rem; }
+  .termo-titulo { font: 500 1.25rem/1.2 var(--serif); color: var(--preto); margin: 0 0 .5rem; }
+  .termo ul { margin: 0 0 .6rem; padding-left: 1.1rem; font-size: .92rem; color: var(--tinta-suave); }
+  .termo li { margin: .35rem 0; } .termo li strong { color: var(--tinta); font-weight: 500; }
+  .termo .ler { font-size: .88rem; margin: 0; }
+  .termo .ler a, .rodape-legal a { color: var(--preto); }
+  .termo-aceite { display: flex; gap: .7rem; align-items: flex-start; margin: 0 0 1rem; cursor: pointer; font-size: .95rem; }
+  .termo-aceite input { width: 1.4rem; height: 1.4rem; margin-top: .1rem; flex: none; accent-color: var(--preto); }
+  .rodape-legal { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--linha); color: var(--tinta-suave); font-size: .85rem; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; }
   .erro-geral { color: var(--erro); margin: 0 0 1rem; font-weight: 500; }
   .opcoes-pgto { border: 0; padding: 0; margin: 0 0 1rem; display: grid; gap: .5rem; }
   .opcoes-pgto label { display: flex; gap: .6rem; align-items: flex-start; padding: .75rem .9rem; border: 1px solid var(--linha); background: var(--cartao); cursor: pointer; }
@@ -236,6 +245,21 @@
       <p id="aviso-pagamento" class="privacidade" hidden></p>
       <p class="privacidade">Usamos seu nome e WhatsApp apenas para confirmar e organizar este atendimento.</p>
 
+      <div class="termo" id="termo">
+        <p class="termo-titulo">Resumo das condições da compra</p>
+        <ul>
+          <li><strong>Pagamento:</strong> sinal de <span id="t-pct">50</span>% para garantir o horário, por Pix ou cartão (Mercado Pago). O restante é pago na clínica. Se preferir, pode pagar o valor total agora.</li>
+          <li><strong>Agendamento:</strong> o horário só fica garantido depois da confirmação do pagamento. Há tolerância de atraso de 10 minutos; depois disso, o atendimento é reduzido.</li>
+          <li><strong>Cancelamento e reembolso:</strong> com pelo menos 24 horas de antecedência, você pode remarcar uma vez. Com menos de 24 horas, ou se faltar, o sinal fica retido. Se já pagou o valor total, pode reagendar, sem devolução. Se a clínica cancelar, você escolhe entre nova data ou devolução integral.</li>
+          <li><strong>Arrependimento:</strong> você pode desistir em até 7 dias após o pagamento e receber o valor de volta, se o atendimento ainda não tiver sido realizado.</li>
+          <li><strong>Uso do serviço:</strong> informe sua saúde com verdade na ficha. A profissional pode recusar ou adiar o procedimento se houver contraindicação, e os resultados variam de pessoa para pessoa.</li>
+          <li><strong>Direitos e deveres:</strong> você tem direito a informação clara, atendimento com segurança e proteção dos seus dados. Você se compromete a informar dados verdadeiros e seguir as orientações.</li>
+        </ul>
+        <p class="ler">Leia na íntegra: <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a> · <a href="cancelamento.html" target="_blank" rel="noopener">Cancelamento e Reembolso</a> · <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a></p>
+      </div>
+      <label class="termo-aceite"><input type="checkbox" id="aceite" aria-describedby="erro-aceite"><span id="aceite-txt">Li e aceito os Termos de Uso, a Política de Cancelamento e Reembolso e a Política de Privacidade.</span></label>
+      <p id="erro-aceite" class="erro-geral" role="alert" hidden>Para continuar, marque que leu e aceita as condições.</p>
+
       <p id="erro-geral" class="erro-geral" role="alert" hidden></p>
       <button id="enviar" class="botao" type="submit">Confirmar agendamento</button>
     </section>
@@ -262,6 +286,12 @@
       <button id="novo" class="botao secundario" type="button">Fazer outro agendamento</button>
     </div>
   </section>
+
+  <nav class="rodape-legal" aria-label="Documentos">
+    <a href="termos.html">Termos de Uso</a>
+    <a href="cancelamento.html">Cancelamento e Reembolso</a>
+    <a href="privacidade.html">Política de Privacidade</a>
+  </nav>
 </main>
 
 <script>
@@ -274,6 +304,7 @@
   // ==========================
 
   const $ = (id) => document.getElementById(id);
+  document.addEventListener('change', (ev) => { if (ev.target.id === 'aceite' && ev.target.checked) $('erro-aceite').hidden = true; });
   const estado = { itens: [], blocos: [], cupom: null, pagarTudo: false, config: null };
   const reduzMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -636,6 +667,9 @@
       ? `Para garantir ${horarios}, você paga um sinal de ${brl(pagar)} agora por Pix ou cartão, em ambiente seguro do Mercado Pago. O restante, ${brl(restante)}, é pago na clínica. ${varios ? 'Os horários ficam reservados' : 'O horário fica reservado'} por ${estado.config.reserva_min} minutos para você concluir o pagamento.`
       : `Você paga ${brl(pagar)} por Pix ou cartão, em ambiente seguro do Mercado Pago. ${varios ? 'Os horários ficam reservados' : 'O horário fica reservado'} por ${estado.config.reserva_min} minutos para você concluir o pagamento.`;
     $('enviar').textContent = rotuloEnviar();
+    $('t-pct').textContent = estado.config.percentual;
+    $('aceite-txt').textContent = 'Li e aceito os Termos de Uso, a Política de Cancelamento e Reembolso e a Política de Privacidade.' +
+      (estado.blocos.some((b) => b.outra) ? ' Declaro que as pessoas indicadas estão cientes e autorizaram o uso dos dados delas neste agendamento.' : '');
   }
 
   // ----- Cupom -----
@@ -736,6 +770,13 @@
       if (!estado.cupom) { $('cupom').focus(); return; }
     }
 
+    if (!$('aceite').checked) {
+      $('erro-aceite').hidden = false;
+      $('aceite').focus();
+      rolarPara($('termo'));
+      return;
+    }
+    $('erro-aceite').hidden = true;
     const c = calcular();
     const botao = $('enviar');
     botao.disabled = true;
@@ -757,6 +798,7 @@
           whatsapp: $('whatsapp').value,
           email: $('email').value,
           site: $('site').value,
+          aceite: true,
           pagar_tudo: estado.pagarTudo,
           preco_esperado_centavos: c.base,
           cupom: estado.cupom ? estado.cupom.codigo : '',
