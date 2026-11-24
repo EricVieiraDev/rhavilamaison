@@ -100,6 +100,10 @@
   }
   .item .hora { font: 400 1.6rem/1.1 var(--serif); font-variant-numeric: tabular-nums; }
   .item .nome { font-weight: 600; }
+  .reag { grid-column: 2; border: 1px solid var(--linha, #c9a96a55); border-radius: .75rem; padding: .85rem; margin-top: .5rem; }
+  .reag .horas { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0; }
+  .reag .horas button[aria-pressed="true"] { background: var(--preto); color: var(--papel); }
+  .reag .horas button:disabled { text-decoration: line-through; opacity: .45; }
   .item .acoes { grid-column: 2; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .4rem; }
   .selo { display: inline-block; padding: .05rem .55rem; border-radius: 99px; font-size: .8rem; font-weight: 600; margin-left: .35rem; vertical-align: .1em; }
   .selo.confirmado { background: var(--verde-fundo); color: var(--verde); }
@@ -520,6 +524,18 @@
       });
       acoes.append(botao);
     }
+    // Reagendar (só a dona, aqui no painel): escolhe novo dia e horário livre; depois avisa a cliente pelo WhatsApp.
+    let painelReag = null;
+    if (a.status === 'confirmado') {
+      const botaoReag = el('button', { class: 'botao claro mini', type: 'button' }, 'Reagendar');
+      painelReag = el('div', { class: 'reag' });
+      painelReag.hidden = true;
+      botaoReag.addEventListener('click', () => {
+        painelReag.hidden = !painelReag.hidden;
+        if (!painelReag.hidden && !painelReag.childElementCount) montarReagendamento(a, painelReag);
+      });
+      acoes.append(botaoReag);
+    }
     // Sinal pago online e o que falta na clínica (dinheiro, Pix ou cartão).
     const total = a.preco_total_centavos || 0;
     const sit = situacaoPag(a);
@@ -564,8 +580,69 @@
         // Procedimento para outra pessoa: mostra quem reservou e paga (o pagamento é do pedido todo).
         a.pagador_nome ? el('div', { class: 'suave pequeno' }, `Reservado e pago por ${a.pagador_nome} · ${formatarZap(a.pagador_whatsapp || '')}`) : null
       ),
-      acoes
+      acoes,
+      painelReag
     );
+  }
+
+  function montarReagendamento(a, caixa) {
+    const dia = el('input', { type: 'date', id: 'rd-' + a.codigo });
+    dia.min = hojeBR();
+    const grade = el('div', { class: 'horas' });
+    const msg = el('p', { class: 'suave pequeno', style: 'margin:0' }, 'Escolha o novo dia para ver os horários livres.');
+    const confirmar = el('button', { class: 'botao mini', type: 'button' }, 'Confirmar reagendamento');
+    confirmar.disabled = true;
+    let escolhida = '';
+
+    dia.addEventListener('change', async () => {
+      escolhida = ''; confirmar.disabled = true;
+      if (!dia.value) return;
+      grade.replaceChildren(); msg.textContent = 'Carregando horários…';
+      try {
+        const r = await api(`/horarios-reagendar?codigo=${a.codigo}&data=${dia.value}`);
+        if (!r.horarios.length) { msg.textContent = 'Nenhum horário livre nesse dia. Tente outro.'; }
+        else msg.textContent = `Horários livres em ${dataLonga(dia.value)}:`;
+        const botoes = [
+          ...r.horarios.map((h) => ({ h, livre: true })),
+          ...r.ocupados.map((h) => ({ h, livre: false })),
+        ].sort((x, y) => x.h.localeCompare(y.h)).map(({ h, livre }) => {
+          const b = el('button', { class: 'botao claro mini', type: 'button', 'aria-pressed': 'false' }, h);
+          if (!livre) { b.disabled = true; return b; }
+          b.addEventListener('click', () => {
+            escolhida = h; confirmar.disabled = false;
+            grade.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+          });
+          return b;
+        });
+        grade.replaceChildren(...botoes);
+      } catch (e) { if (e.status !== 401) msg.textContent = e.message; }
+    });
+
+    confirmar.addEventListener('click', async () => {
+      if (!escolhida || !dia.value) return;
+      confirmar.disabled = true;
+      try {
+        const r = await api(`/agendamentos/${a.codigo}/reagendar`, { metodo: 'POST', corpo: { data: dia.value, hora: escolhida } });
+        const texto = encodeURIComponent(
+          `Olá, ${a.nome.split(' ')[0]}! Aqui é da Rhavila Maison. Seu horário (${a.servico}) foi reagendado: ` +
+          `de ${dataLonga(r.anterior.data)} às ${r.anterior.hora} para ${dataLonga(r.novo.data)} às ${r.novo.hora}. ` +
+          `Qualquer dúvida, é só responder esta mensagem.`
+        );
+        const fechar = el('button', { class: 'botao claro mini', type: 'button' }, 'Concluir');
+        fechar.addEventListener('click', carregarAgenda);
+        caixa.replaceChildren(
+          el('p', { class: 'aviso ok', style: 'margin:0 0 .6rem' }, `Reagendado para ${dataLonga(r.novo.data)} às ${r.novo.hora}. O horário antigo já ficou livre.`),
+          el('div', { class: 'acoes', style: 'margin:0' },
+            el('a', { class: 'botao mini', href: `https://wa.me/55${a.whatsapp}?text=${texto}`, target: '_blank', rel: 'noopener' }, 'Avisar a cliente no WhatsApp'),
+            fechar)
+        );
+      } catch (e) {
+        confirmar.disabled = false;
+        if (e.status !== 401) msg.textContent = e.message;
+      }
+    });
+
+    caixa.append(el('label', { for: 'rd-' + a.codigo, class: 'pequeno' }, 'Novo dia'), dia, msg, grade, confirmar);
   }
 
   function formatarZap(n) {
