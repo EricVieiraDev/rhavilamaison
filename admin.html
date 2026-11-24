@@ -173,6 +173,11 @@
           <label for="f-data">Dia</label>
           <input id="f-data" type="date" required>
         </div>
+        <div class="linha" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem">
+          <button class="botao claro mini" type="button" data-folga="">Dia todo</button>
+          <button class="botao claro mini" type="button" data-folga="08:00-12:00">Manhã (8h–12h)</button>
+          <button class="botao claro mini" type="button" data-folga="13:00-19:00">Tarde (13h–19h)</button>
+        </div>
         <div class="linha">
           <div class="campo">
             <label for="f-inicio">Das <span class="suave">(vazio = o dia todo)</span></label>
@@ -521,6 +526,12 @@
       if (e.status !== 401) lista.replaceChildren(el('li', { class: 'aviso erro' }, e.message));
     }
   }
+
+  document.querySelectorAll('[data-folga]').forEach((b) => b.addEventListener('click', () => {
+    const [i, f] = b.dataset.folga.split('-');
+    $('f-inicio').value = i || '';
+    $('f-fim').value = f || '';
+  }));
 
   $('form-folga').addEventListener('submit', async (ev) => {
     ev.preventDefault();
