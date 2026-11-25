@@ -98,6 +98,13 @@
     display: grid; grid-template-columns: 4.2rem 1fr; gap: .25rem 1rem; padding: .9rem 1rem;
     background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 12px; margin-bottom: .6rem;
   }
+  .item.pag-sinal { border-left: 5px solid var(--ambar); }
+  .item.pag-completo { border-left: 5px solid var(--verde); }
+  .selo.pag-sinal { background: var(--ambar-fundo); color: var(--ambar); }
+  .selo.pag-completo { background: var(--verde-fundo); color: var(--verde); }
+  .legenda-pag { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; align-items: center; font-size: .9rem; color: var(--tinta-suave); margin: 0 0 1.1rem; }
+  .legenda-pag .ponto { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .35rem; vertical-align: -.05em; }
+  .item .falta { color: var(--ambar); font-weight: 600; }
   .item .hora { font: 400 1.6rem/1.1 var(--serif); font-variant-numeric: tabular-nums; }
   .item .nome { font-weight: 600; }
   .reag { grid-column: 2; border: 1px solid var(--linha, #c9a96a55); border-radius: .75rem; padding: .85rem; margin-top: .5rem; }
@@ -167,12 +174,7 @@
         <button class="botao claro" type="button" data-periodo="30" aria-pressed="false">Próximos 30 dias</button>
         <button class="botao claro" type="button" data-periodo="pendentes" aria-pressed="false">Pendências (últimos 60 dias)</button>
       </div>
-      <div class="filtros" id="filtros-pag" aria-label="Filtrar por pagamento">
-        <button class="botao claro" type="button" data-pag="todos" aria-pressed="true">Todos</button>
-        <button class="botao claro" type="button" data-pag="sinal" aria-pressed="false">Só o sinal (falta receber)</button>
-        <button class="botao claro" type="button" data-pag="completo" aria-pressed="false">Pago por completo</button>
-      </div>
-      <p id="resumo-pag" class="suave pequeno" style="margin:0 0 1rem"></p>
+      <p id="resumo-pag" class="legenda-pag" aria-live="polite"></p>
       <div id="agenda"></div>
     </div>
 
@@ -418,7 +420,6 @@
 
   // ----- Agenda -----
   let periodo = 'hoje';
-  let filtroPag = 'todos';
   let ultimaLista = [];
 
   // Situação do pagamento de um atendimento confirmado: só o sinal, ou pago por completo
@@ -435,20 +436,8 @@
     if (!b) return;
     periodo = b.dataset.periodo;
     document.querySelectorAll('#filtros button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    if (periodo === 'pendentes') definirFiltroPag('sinal'); // pendências = quem ainda deve o restante
     carregarAgenda();
   });
-  $('filtros-pag').addEventListener('click', (ev) => {
-    const b = ev.target.closest('button[data-pag]');
-    if (!b) return;
-    definirFiltroPag(b.dataset.pag);
-    desenharAgenda();
-  });
-  function definirFiltroPag(v) {
-    filtroPag = v;
-    document.querySelectorAll('#filtros-pag button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.pag === v)));
-  }
-
   async function carregarAgenda() {
     const caixa = $('agenda');
     const hoje = hojeBR();
@@ -468,14 +457,16 @@
     const caixa = $('agenda');
     const falta = ultimaLista.filter((a) => situacaoPag(a) === 'sinal');
     const completos = ultimaLista.filter((a) => situacaoPag(a) === 'completo');
-    $('resumo-pag').textContent = ultimaLista.length
-      ? `Neste período: ${falta.length} só com o sinal (faltam ${brl(falta.reduce((t, a) => t + faltaReceber(a), 0))} para receber na clínica) · ${completos.length} pago${completos.length === 1 ? '' : 's'} por completo.`
-      : '';
-    const lista = ultimaLista.filter((a) => filtroPag === 'todos' || situacaoPag(a) === filtroPag);
+    const ponto = (cor) => el('span', { class: 'ponto', style: `background:${cor}` });
+    $('resumo-pag').replaceChildren(
+      el('span', {}, ponto('var(--verde)'), `Pago por completo${completos.length ? ' (' + completos.length + ')' : ''}`),
+      el('span', {}, ponto('var(--ambar)'), `Só o sinal${falta.length ? ` (${falta.length}) · faltam ${brl(falta.reduce((t, a) => t + faltaReceber(a), 0))}` : ''}`)
+    );
+    // "Pendências" mostra só quem ainda deve o restante; nos outros períodos aparece tudo junto.
+    const lista = periodo === 'pendentes' ? falta : ultimaLista;
     if (!lista.length) {
-      const vazio = filtroPag === 'sinal'
-        ? 'Nenhum atendimento com pagamento pendente. Tudo recebido!'
-        : filtroPag === 'completo' ? 'Nenhum atendimento pago por completo nesse período.'
+      const vazio = periodo === 'pendentes'
+        ? 'Nenhuma pendência. Tudo recebido!'
         : (periodo === 'hoje' ? 'Nenhum atendimento hoje.' : 'Nenhum atendimento nesse período.');
       caixa.replaceChildren(el('p', { class: 'vazio' }, vazio));
       return;
@@ -540,15 +531,11 @@
     const total = a.preco_total_centavos || 0;
     const sit = situacaoPag(a);
     let valor = '';
-    if (a.valor_centavos > 0) {
-      const pago = a.status === 'confirmado';
-      valor = total > a.valor_centavos
-        ? ` · sinal ${brl(a.valor_centavos)}${pago ? ' pago' : ' a pagar'}`
-        : ` · ${brl(a.valor_centavos)}${pago ? ' pago' : ' a pagar'}`;
-    }
+    let falta = null;
     if (a.status === 'confirmado') {
       if (sit === 'sinal') {
-        valor += ` · FALTA ${brl(faltaReceber(a))} na clínica`;
+        valor = ` · sinal ${brl(a.valor_centavos)} pago`;
+        falta = el('span', { class: 'falta' }, ` · falta ${brl(faltaReceber(a))} na clínica`);
         const recebi = el('button', { class: 'botao claro mini', type: 'button' }, 'Recebi o restante');
         recebi.addEventListener('click', async () => {
           recebi.disabled = true;
@@ -557,7 +544,7 @@
         });
         acoes.append(recebi);
       } else if (a.restante_pago_em) {
-        valor += ` · restante ${brl(faltaReceber(a))} recebido na clínica`;
+        valor = ` · sinal ${brl(a.valor_centavos)} online + ${brl(faltaReceber(a))} recebido na clínica`;
         const desfazer = el('button', { class: 'botao claro mini', type: 'button' }, 'Desfazer');
         desfazer.addEventListener('click', async () => {
           desfazer.disabled = true;
@@ -566,18 +553,23 @@
         });
         acoes.append(desfazer);
       } else {
-        valor += ' · quitado';
+        valor = ` · ${brl(a.valor_centavos)} pago`;
       }
+    } else if (a.valor_centavos > 0) {
+      valor = ` · ${brl(a.valor_centavos)} a pagar`;
     }
     if (a.promocao_id) valor += ' · promoção';
     if (a.cupom_codigo) valor += ` · cupom ${a.cupom_codigo} (−${brl(a.desconto_centavos || 0)})`;
-    return el('div', { class: 'item' + (a.status === 'cancelado' || a.status === 'expirado' ? ' apagado' : '') },
+    const classePag = sit === 'sinal' ? ' pag-sinal' : (sit === 'completo' ? ' pag-completo' : '');
+    const seloPag = sit === 'sinal' ? el('span', { class: 'selo pag-sinal' }, 'Só o sinal')
+      : (sit === 'completo' ? el('span', { class: 'selo pag-completo' }, 'Pago por completo') : el('span', { class: 'selo ' + a.status }, rotulos[a.status] ?? a.status));
+    return el('div', { class: 'item' + classePag + (a.status === 'cancelado' || a.status === 'expirado' ? ' apagado' : '') },
       el('div', { class: 'hora' }, a.hora),
       el('div', {},
-        el('div', { class: 'nome' }, a.nome, el('span', { class: 'selo ' + a.status }, rotulos[a.status] ?? a.status)),
-        el('div', { class: 'suave pequeno' }, `${a.servico} (${duracao(a.duracao_min)})${valor}`),
+        el('div', { class: 'nome' }, a.nome, seloPag),
+        el('div', { class: 'suave pequeno' }, `${a.servico} (${duracao(a.duracao_min)})${valor}`, falta),
         el('div', { class: 'suave pequeno' }, `${formatarZap(a.whatsapp)}${a.email ? ' · ' + a.email : ''} · código ${a.codigo}`),
-        a.aceite_em ? el('div', { class: 'suave pequeno' }, `Aceitou os termos em ${new Date(a.aceite_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' })} (versão ${a.aceite_versao})`) : null,
+        a.aceite_em ? el('div', { class: 'suave pequeno' }, `Termos aceitos em ${new Date(a.aceite_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}`) : null,
         // Procedimento para outra pessoa: mostra quem reservou e paga (o pagamento é do pedido todo).
         a.pagador_nome ? el('div', { class: 'suave pequeno' }, `Reservado e pago por ${a.pagador_nome} · ${formatarZap(a.pagador_whatsapp || '')}`) : null
       ),
