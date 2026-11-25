@@ -105,6 +105,13 @@
   .legenda-pag { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; align-items: center; font-size: .9rem; color: var(--tinta-suave); margin: 0 0 1.1rem; }
   .legenda-pag .ponto { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; margin-right: .35rem; vertical-align: -.05em; }
   .item .falta { color: var(--ambar); font-weight: 600; }
+  .lembretes { border: 1px solid var(--linha); border-radius: 12px; background: var(--cartao); padding: .8rem 1rem; margin: 0 0 1.1rem; }
+  .lembretes h3 { font: 400 1.2rem/1.2 var(--serif); margin: 0 0 .5rem; color: var(--preto); }
+  .lembretes .linha-lembrete { display: flex; gap: .75rem; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: .45rem 0; border-top: 1px solid var(--linha); }
+  .lembretes .linha-lembrete:first-of-type { border-top: 0; }
+  .aviso a.botao { margin-left: .5rem; }
+  .msg-card { margin-bottom: 1rem; }
+  .msg-card textarea { min-height: 11rem; }
   .item .hora { font: 400 1.6rem/1.1 var(--serif); font-variant-numeric: tabular-nums; }
   .item .nome { font-weight: 600; }
   .reag { grid-column: 2; border: 1px solid var(--linha, #c9a96a55); border-radius: .75rem; padding: .85rem; margin-top: .5rem; }
@@ -164,6 +171,7 @@
       <button class="aba" role="tab" id="aba-servicos" aria-controls="painel-servicos" aria-selected="false" type="button">Serviços</button>
       <button class="aba" role="tab" id="aba-promocoes" aria-controls="painel-promocoes" aria-selected="false" type="button">Promoções</button>
       <button class="aba" role="tab" id="aba-cupons" aria-controls="painel-cupons" aria-selected="false" type="button">Cupons</button>
+      <button class="aba" role="tab" id="aba-mensagens" aria-controls="painel-mensagens" aria-selected="false" type="button">Mensagens</button>
     </div>
 
     <!-- Agenda -->
@@ -175,6 +183,7 @@
         <button class="botao claro" type="button" data-periodo="pendentes" aria-pressed="false">Pendências (últimos 60 dias)</button>
       </div>
       <p id="resumo-pag" class="legenda-pag" aria-live="polite"></p>
+      <div id="lembretes" class="lembretes" hidden></div>
       <div id="agenda"></div>
     </div>
 
@@ -282,6 +291,11 @@
         <p id="erro-promocao" class="aviso erro" role="alert" hidden></p>
         <button class="botao" type="submit">Criar promoção</button>
       </form>
+    </div>
+    <!-- Mensagens -->
+    <div id="painel-mensagens" role="tabpanel" aria-labelledby="aba-mensagens" hidden>
+      <p class="suave">São os textos que aparecem prontos no WhatsApp quando você aperta "Enviar confirmação", "Enviar lembrete" ou "Avisar a cliente". Você ainda pode mexer no texto na hora de enviar. Use estas palavras entre chaves, que o painel troca pelos dados da cliente: <strong>{nome}</strong>, <strong>{servico}</strong>, <strong>{dia}</strong>, <strong>{hora}</strong>, <strong>{pagamento}</strong> (o que já foi pago e o que falta), <strong>{endereco}</strong> e <strong>{codigo}</strong>.</p>
+      <div id="lista-mensagens"></div>
     </div>
     <!-- Cupons -->
     <div id="painel-cupons" role="tabpanel" aria-labelledby="aba-cupons" hidden>
@@ -406,7 +420,7 @@
   });
 
   // ----- Abas -----
-  const abas = { agenda: carregarAgenda, folgas: carregarFolgas, servicos: carregarServicos, promocoes: carregarPromocoes, cupons: carregarCupons };
+  const abas = { agenda: carregarAgenda, folgas: carregarFolgas, servicos: carregarServicos, promocoes: carregarPromocoes, cupons: carregarCupons, mensagens: carregarTelaMensagens };
   for (const nome of Object.keys(abas)) {
     $('aba-' + nome).addEventListener('click', () => {
       for (const outro of Object.keys(abas)) {
@@ -416,6 +430,67 @@
       mostrarAviso('');
       abas[nome]();
     });
+  }
+
+  // ----- Mensagens de WhatsApp (prontas; você só aperta enviar) -----
+  let msgs = null;
+  let enderecoClinica = '';
+  async function carregarMensagens() {
+    if (msgs) return msgs;
+    const r = await api('/mensagens');
+    msgs = r.mensagens; enderecoClinica = r.endereco;
+    return msgs;
+  }
+  function textoPagamento(a, tipo) {
+    const pago = a.valor_centavos || 0;
+    if (tipo === 'cancelamento') {
+      return pago > 0 && a.pagamento_id
+        ? `Sobre o valor já pago (${brl(pago)}), vamos combinar com você a devolução ou o uso em uma nova data.`
+        : '';
+    }
+    if ((a.preco_total_centavos || 0) === 0) return 'Sem valor a pagar.';
+    return situacaoPag(a) === 'sinal'
+      ? `Sinal de ${brl(pago)} pago. Falta ${brl(faltaReceber(a))}, a pagar na clínica.`
+      : `Pagamento total confirmado (${brl(a.preco_total_centavos)}).`;
+  }
+  function montarTexto(tipo, a) {
+    const dados = {
+      nome: a.nome.split(' ')[0], servico: a.servico, dia: dataLonga(a.data), hora: a.hora,
+      pagamento: textoPagamento(a, tipo), endereco: enderecoClinica, codigo: a.codigo,
+    };
+    return msgs[tipo].replace(/\{(\w+)\}/g, (m, k) => (k in dados ? dados[k] : m)).replace(/\n{3,}/g, '\n\n').trim();
+  }
+  const linkZap = (a, texto) => `https://wa.me/55${a.whatsapp}?text=${encodeURIComponent(texto)}`;
+
+  // Abre o WhatsApp com o texto pronto e marca como enviado (para não esquecer nem repetir).
+  async function enviarAviso(a, tipo) {
+    try { await carregarMensagens(); } catch (e) { if (e.status !== 401) mostrarAviso(e.message, 'erro'); return; }
+    window.open(linkZap(a, montarTexto(tipo, a)), '_blank', 'noopener');
+    try { await api(`/agendamentos/${a.codigo}/aviso`, { metodo: 'POST', corpo: { tipo } }); carregarAgenda(); }
+    catch (e) { if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+  }
+
+  async function desenharLembretes() {
+    const caixa = $('lembretes');
+    if (periodo === 'pendentes') { caixa.hidden = true; return; }
+    try {
+      const amanha = somarDias(hojeBR(), 1);
+      const r = await api(`/agendamentos?de=${amanha}&ate=${amanha}`);
+      const lista = r.agendamentos.filter((x) => x.status === 'confirmado');
+      if (!lista.length) { caixa.hidden = true; return; }
+      const faltam = lista.filter((x) => !x.lembrete_enviado_em).length;
+      caixa.replaceChildren(
+        el('h3', {}, `Lembretes de amanhã (${faltam ? faltam + ' para enviar' : 'todos enviados'})`),
+        ...lista.map((x) => {
+          const feito = Boolean(x.lembrete_enviado_em);
+          const b = el('button', { class: 'botao mini' + (feito ? ' claro' : ''), type: 'button' }, feito ? 'Lembrete enviado ✓' : 'Enviar lembrete');
+          b.addEventListener('click', () => enviarAviso(x, 'lembrete'));
+          return el('div', { class: 'linha-lembrete' },
+            el('span', {}, el('strong', {}, x.hora), ` · ${x.nome} · `, el('span', { class: 'suave' }, x.servico)), b);
+        })
+      );
+      caixa.hidden = false;
+    } catch (e) { caixa.hidden = true; }
   }
 
   // ----- Agenda -----
@@ -447,7 +522,9 @@
     try {
       const r = await api(`/agendamentos?de=${de}&ate=${ate}`);
       ultimaLista = r.agendamentos;
+      try { await carregarMensagens(); } catch (e) { /* os botões tentam de novo ao clicar */ }
       desenharAgenda();
+      desenharLembretes();
     } catch (e) {
       if (e.status !== 401) caixa.replaceChildren(el('p', { class: 'aviso erro', role: 'alert' }, e.message));
     }
@@ -507,6 +584,9 @@
               : `Agendamento de ${a.nome} cancelado. O horário já está livre de novo.`,
             r.reembolso_pendente ? 'atencao' : 'ok'
           );
+          if (a.status === 'confirmado' && msgs) {
+            $('aviso-geral').append(el('a', { class: 'botao mini', href: linkZap(a, montarTexto('cancelamento', a)), target: '_blank', rel: 'noopener' }, 'Avisar a cliente no WhatsApp'));
+          }
           carregarAgenda();
         } catch (e) {
           botao.disabled = false;
@@ -514,6 +594,13 @@
         }
       });
       acoes.append(botao);
+    }
+    // Confirmação pelo WhatsApp: abre a conversa com o texto pronto; depois fica marcado como enviado.
+    if (a.status === 'confirmado') {
+      const jaConf = Boolean(a.confirmacao_enviada_em);
+      const botaoConf = el('button', { class: 'botao mini' + (jaConf ? ' claro' : ''), type: 'button' }, jaConf ? 'Confirmação enviada ✓' : 'Enviar confirmação');
+      botaoConf.addEventListener('click', () => enviarAviso(a, 'confirmacao'));
+      acoes.append(botaoConf);
     }
     // Reagendar (só a dona, aqui no painel): escolhe novo dia e horário livre; depois avisa a cliente pelo WhatsApp.
     let painelReag = null;
@@ -868,6 +955,38 @@
       if (e.status !== 401) { erro.textContent = e.message; erro.hidden = false; }
     }
   });
+
+  // ----- Aba Mensagens (editar os textos) -----
+  const titulosMsg = { confirmacao: 'Confirmação (depois de agendar)', lembrete: 'Lembrete (1 dia antes)', cancelamento: 'Cancelamento' };
+  async function carregarTelaMensagens() {
+    const caixa = $('lista-mensagens');
+    try {
+      msgs = null;
+      const r = await api('/mensagens');
+      msgs = r.mensagens; enderecoClinica = r.endereco;
+      caixa.replaceChildren(...Object.keys(titulosMsg).map((k) => {
+        const area = el('textarea', { rows: '9', maxlength: '1500', 'aria-label': titulosMsg[k] });
+        area.value = r.mensagens[k];
+        const salvar = el('button', { class: 'botao mini', type: 'button' }, 'Salvar');
+        salvar.addEventListener('click', async () => {
+          salvar.disabled = true;
+          try { await api('/mensagens', { metodo: 'PUT', corpo: { [k]: area.value } }); msgs = null; mostrarAviso('Mensagem salva.', 'ok'); }
+          catch (e) { if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+          salvar.disabled = false;
+        });
+        const padrao = el('button', { class: 'botao claro mini', type: 'button' }, 'Voltar ao texto padrão');
+        padrao.addEventListener('click', async () => {
+          padrao.disabled = true;
+          try { await api('/mensagens', { metodo: 'PUT', corpo: { [k]: null } }); mostrarAviso('Texto padrão restaurado.', 'ok'); carregarTelaMensagens(); }
+          catch (e) { padrao.disabled = false; if (e.status !== 401) mostrarAviso(e.message, 'erro'); }
+        });
+        return el('div', { class: 'cartao msg-card' }, el('h3', {}, titulosMsg[k]), area,
+          el('div', { class: 'acoes', style: 'margin-top:.6rem; display:flex; gap:.5rem; flex-wrap:wrap' }, salvar, padrao));
+      }));
+    } catch (e) {
+      if (e.status !== 401) caixa.replaceChildren(el('p', { class: 'aviso erro' }, e.message));
+    }
+  }
 
   // ----- Cupons -----
   async function carregarCupons() {
